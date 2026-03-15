@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, type KeyboardEvent } from "react";
-import { Settings as SettingsIcon, RefreshCw } from "lucide-react";
+import { Settings as SettingsIcon, RefreshCw, GitFork } from "lucide-react";
 import { useSettings } from "./hooks/useSettings";
 import { usePRs } from "./hooks/usePRs";
 import { useTriageConfig } from "./hooks/useTriageConfig";
@@ -109,21 +109,28 @@ export default function App() {
         {/* Top bar */}
         <div className="flex items-center gap-2 px-4 py-2.5">
           {/* Repo input */}
-          <input
-            type="text"
-            value={repoInput}
-            onChange={(e) => setRepoInput(e.target.value)}
-            onKeyDown={handleRepoKeyDown}
-            onBlur={handleRepoSubmit}
-            placeholder="owner/repo"
-            spellCheck={false}
-            className="
-              flex-1 min-w-0
-              bg-transparent border-none outline-none
-              text-[13px] font-mono text-[var(--color-fg)]
-              placeholder:text-[var(--color-fg-dim)]
-            "
-          />
+          <div className="relative flex-1 min-w-0">
+            <GitFork className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-[var(--color-fg-dim)]" />
+            <input
+              type="text"
+              value={repoInput}
+              onChange={(e) => setRepoInput(e.target.value)}
+              onKeyDown={handleRepoKeyDown}
+              onBlur={handleRepoSubmit}
+              placeholder="owner/repo"
+              spellCheck={false}
+              className="
+                w-full
+                rounded-lg border border-[var(--color-border)]
+                bg-[var(--color-bg-raised)]
+                pl-8 pr-3 py-1.5
+                text-[13px] font-mono text-[var(--color-fg)]
+                placeholder:text-[var(--color-fg-dim)]
+                outline-none transition-colors
+                focus:border-[var(--color-blue)]/40 focus:bg-[var(--color-bg-overlay)]
+              "
+            />
+          </div>
 
           {/* Actions */}
           <div className="flex items-center gap-0.5 shrink-0">
