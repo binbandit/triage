@@ -1,5 +1,13 @@
 import { useState, useMemo } from "react";
-import { ChevronRight, GitPullRequest, ExternalLink, FileEdit, CircleDot } from "lucide-react";
+import {
+  ChevronRight,
+  GitPullRequest,
+  GitMerge,
+  XCircle,
+  ExternalLink,
+  FileEdit,
+  CircleDot,
+} from "lucide-react";
 import type { PullRequest } from "../types";
 import { LabelBadge } from "./LabelBadge";
 import { parseLinkedIssues } from "../lib/parseIssues";
@@ -59,11 +67,16 @@ export function PRRow({ pr, repo, highlightLabels = [] }: PRRowProps) {
           />
         </button>
 
-        {/* PR icon */}
+        {/* PR icon - state-aware */}
         <div className="shrink-0 mt-[3px]">
-          {pr.isDraft ? (
-            <FileEdit className="size-3.5 text-[var(--color-fg-dim)]" />
-          ) : (
+          {pr.isDraft && <FileEdit className="size-3.5 text-[var(--color-fg-dim)]" />}
+          {!pr.isDraft && pr.state === "MERGED" && (
+            <GitMerge className="size-3.5 text-[var(--color-blue)]" />
+          )}
+          {!pr.isDraft && pr.state === "CLOSED" && (
+            <XCircle className="size-3.5 text-[var(--color-red)]" />
+          )}
+          {!pr.isDraft && pr.state === "OPEN" && (
             <GitPullRequest className="size-3.5 text-[var(--color-green)]" />
           )}
         </div>

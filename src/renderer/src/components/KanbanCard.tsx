@@ -1,5 +1,12 @@
 import { type DragEvent } from "react";
-import { GitPullRequest, FileEdit, ExternalLink, GripVertical } from "lucide-react";
+import {
+  GitPullRequest,
+  GitMerge,
+  XCircle,
+  FileEdit,
+  ExternalLink,
+  GripVertical,
+} from "lucide-react";
 import type { PullRequest } from "../types";
 import { LabelBadge } from "./LabelBadge";
 
@@ -45,9 +52,16 @@ export function KanbanCard({ pr, repo, onDragStart }: KanbanCardProps) {
         <GripVertical className="size-3.5 shrink-0 mt-0.5 text-[var(--color-fg-dim)] opacity-0 group-hover:opacity-100 transition-opacity" />
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-1.5">
-            {pr.isDraft ? (
+            {pr.isDraft && (
               <FileEdit className="size-3 shrink-0 text-[var(--color-fg-dim)] translate-y-[1px]" />
-            ) : (
+            )}
+            {!pr.isDraft && pr.state === "MERGED" && (
+              <GitMerge className="size-3 shrink-0 text-[var(--color-blue)] translate-y-[1px]" />
+            )}
+            {!pr.isDraft && pr.state === "CLOSED" && (
+              <XCircle className="size-3 shrink-0 text-[var(--color-red)] translate-y-[1px]" />
+            )}
+            {!pr.isDraft && pr.state === "OPEN" && (
               <GitPullRequest className="size-3 shrink-0 text-[var(--color-green)] translate-y-[1px]" />
             )}
             <button

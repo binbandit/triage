@@ -18,7 +18,7 @@ export function usePRs(): UsePRsReturn {
     setError(null);
     try {
       const options: { state: string; limit: number; repo?: string } = {
-        state: "open",
+        state: "all",
         limit: 1000,
       };
       if (repo) {

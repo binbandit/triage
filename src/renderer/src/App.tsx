@@ -131,7 +131,10 @@ export default function App() {
     }
   };
 
-  const filtered = useMemo(() => filterPRs(prs, search), [prs, search]);
+  // List view: open PRs only. Kanban view: all states.
+  const openPRs = useMemo(() => prs.filter((pr) => pr.state === "OPEN"), [prs]);
+  const viewPRs = settings.viewMode === "kanban" ? prs : openPRs;
+  const filtered = useMemo(() => filterPRs(viewPRs, search), [viewPRs, search]);
 
   const groups = useMemo(() => config?.groups ?? [], [config]);
   const { grouped, ungrouped } = useMemo(() => groupPRs(filtered, groups), [filtered, groups]);
