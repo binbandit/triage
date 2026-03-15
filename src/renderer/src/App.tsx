@@ -3,49 +3,14 @@ import { Settings as SettingsIcon, RefreshCw, GitFork, List, Columns3 } from "lu
 import { useSettings } from "./hooks/useSettings";
 import { usePRs } from "./hooks/usePRs";
 import { useTriageConfig } from "./hooks/useTriageConfig";
+import { filterPRs, groupPRs } from "./lib/prHelpers";
 import { SearchBar } from "./components/SearchBar";
 import { PRRow } from "./components/PRRow";
 import { GroupSection } from "./components/GroupSection";
 import { KanbanView } from "./components/KanbanView";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { EmptyState } from "./components/EmptyState";
-import type { PullRequest, LabelGroup, ViewMode } from "./types";
-
-/* ── Helpers ──────────────────────────────────────── */
-
-function filterPRs(prs: PullRequest[], query: string): PullRequest[] {
-  if (!query.trim()) return prs;
-  const q = query.toLowerCase();
-  return prs.filter((pr) => {
-    if (pr.title.toLowerCase().includes(q)) return true;
-    if (pr.author.login.toLowerCase().includes(q)) return true;
-    if (`#${pr.number}`.includes(q)) return true;
-    if (pr.labels.some((l) => l.name.toLowerCase().includes(q))) return true;
-    return false;
-  });
-}
-
-function prMatchesGroup(pr: PullRequest, group: LabelGroup): boolean {
-  const names = pr.labels.map((l) => l.name.toLowerCase());
-  return group.labels.every((gl) => names.includes(gl.toLowerCase()));
-}
-
-function groupPRs(
-  prs: PullRequest[],
-  groups: LabelGroup[],
-): { grouped: { group: LabelGroup; prs: PullRequest[] }[]; ungrouped: PullRequest[] } {
-  const assigned = new Set<number>();
-  const grouped = groups.map((group) => {
-    const matching = prs.filter((pr) => {
-      if (assigned.has(pr.number)) return false;
-      return prMatchesGroup(pr, group);
-    });
-    for (const pr of matching) assigned.add(pr.number);
-    return { group, prs: matching };
-  });
-  const ungrouped = prs.filter((pr) => !assigned.has(pr.number));
-  return { grouped, ungrouped };
-}
+import type { ViewMode } from "./types";
 
 /* ── View toggle button ───────────────────────────── */
 

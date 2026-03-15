@@ -18,7 +18,12 @@ import type { TriageConfig, LabelGroup } from "../types";
  * Each value is an array of label strings that a PR must have to belong to that group.
  */
 export function parseTriageConfig(raw: string): TriageConfig {
-  const doc = parse(raw);
+  let doc: unknown;
+  try {
+    doc = parse(raw);
+  } catch {
+    return { groups: [] };
+  }
 
   if (!doc || typeof doc !== "object") {
     return { groups: [] };
