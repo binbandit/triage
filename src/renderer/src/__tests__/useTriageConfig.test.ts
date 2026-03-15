@@ -46,8 +46,10 @@ describe("useTriageConfig", () => {
       await result.current.fetchConfig("test/repo");
     });
 
-    expect(result.current.config).toEqual({
-      groups: [{ name: "ready", labels: ["approved", "ci-passed"] }],
+    expect(result.current.config?.groups).toHaveLength(1);
+    expect(result.current.config?.groups[0]).toMatchObject({
+      name: "ready",
+      labels: ["approved", "ci-passed"],
     });
     expect(result.current.configError).toBeNull();
   });

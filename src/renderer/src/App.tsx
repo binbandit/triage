@@ -4,6 +4,7 @@ import { useSettings } from "./hooks/useSettings";
 import { usePRs } from "./hooks/usePRs";
 import { useTriageConfig } from "./hooks/useTriageConfig";
 import { filterPRs, groupPRs } from "./lib/prHelpers";
+import { classifyError } from "./lib/errorUtils";
 import { SearchBar } from "./components/SearchBar";
 import { PRRow } from "./components/PRRow";
 import { GroupSection } from "./components/GroupSection";
@@ -106,6 +107,7 @@ export default function App() {
 
   const hasGroups = groups.length > 0;
   const hasResults = filtered.length > 0;
+  const classifiedError = error ? classifyError(error) : null;
 
   return (
     <div className="flex flex-col h-screen bg-[var(--color-bg)] text-[var(--color-fg)]">
@@ -211,7 +213,9 @@ export default function App() {
       <main className="flex-1 overflow-hidden">
         {!settings.repo && <EmptyState type="no-repo" />}
         {settings.repo && loading && prs.length === 0 && <EmptyState type="loading" />}
-        {settings.repo && error && <EmptyState type="error" message={error} />}
+        {settings.repo && classifiedError && (
+          <EmptyState type={classifiedError.type} message={classifiedError.message} />
+        )}
         {settings.repo && !loading && !error && prs.length === 0 && <EmptyState type="empty" />}
         {settings.repo && !error && !hasResults && prs.length > 0 && (
           <EmptyState type="empty" message="No PRs match your filter." />
@@ -235,6 +239,8 @@ export default function App() {
                   <GroupSection
                     key={group.name}
                     name={group.name}
+                    description={group.description}
+                    color={group.color}
                     prs={groupPrs}
                     repo={settings.repo}
                     highlightLabels={group.labels}

@@ -1,7 +1,9 @@
-import { GitPullRequest, AlertCircle, Loader2 } from "lucide-react";
+import { GitPullRequest, AlertCircle, Loader2, ShieldX, Lock } from "lucide-react";
+
+export type EmptyStateType = "loading" | "empty" | "error" | "no-repo" | "forbidden" | "not-found";
 
 interface EmptyStateProps {
-  type: "loading" | "empty" | "error" | "no-repo";
+  type: EmptyStateType;
   message?: string;
 }
 
@@ -32,6 +34,29 @@ export function EmptyState({ type, message }: EmptyStateProps) {
             Something went wrong
           </p>
           <p className="text-[12px] text-[var(--color-fg-muted)] max-w-xs">{message}</p>
+        </>
+      )}
+      {type === "not-found" && (
+        <>
+          <AlertCircle className="size-5 text-[var(--color-amber)]/60 mb-4" />
+          <p className="text-[13px] text-[var(--color-fg-secondary)] font-medium mb-1">
+            Repository not found
+          </p>
+          <p className="text-[12px] text-[var(--color-fg-muted)] max-w-xs">
+            {message || "Check the owner/repo name and try again."}
+          </p>
+        </>
+      )}
+      {type === "forbidden" && (
+        <>
+          <Lock className="size-5 text-[var(--color-amber)]/60 mb-4" />
+          <p className="text-[13px] text-[var(--color-fg-secondary)] font-medium mb-1">
+            Access denied
+          </p>
+          <p className="text-[12px] text-[var(--color-fg-muted)] max-w-xs">
+            {message ||
+              "You don't have permission to access this repository. Check that you're authenticated with `gh auth login`."}
+          </p>
         </>
       )}
       {type === "no-repo" && (

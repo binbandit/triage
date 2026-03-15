@@ -1,8 +1,9 @@
 import { useState, type DragEvent } from "react";
-import { GitPullRequest, XCircle, GitMerge } from "lucide-react";
+import { GitPullRequest, XCircle, GitMerge, X } from "lucide-react";
 import type { PullRequest } from "../types";
 import { KanbanCard } from "./KanbanCard";
 import { CommentDialog, type DialogAction } from "./CommentDialog";
+import { classifyActionError } from "../lib/errorUtils";
 
 interface KanbanViewProps {
   prs: PullRequest[];
@@ -56,6 +57,7 @@ export function KanbanView({ prs, repo, onRefresh }: KanbanViewProps) {
     action: DialogAction;
   } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Bucket PRs into columns by state
   const openPRs = prs.filter((pr) => pr.state === "OPEN");
@@ -98,6 +100,7 @@ export function KanbanView({ prs, repo, onRefresh }: KanbanViewProps) {
   const handleConfirm = async (comment?: string) => {
     if (!pendingAction) return;
     setActionLoading(true);
+    setActionError(null);
     try {
       const { pr, action } = pendingAction;
       if (action === "merge") {
@@ -105,12 +108,15 @@ export function KanbanView({ prs, repo, onRefresh }: KanbanViewProps) {
       } else {
         await window.api.closePR({ repo, number: pr.number, comment });
       }
+      setPendingAction(null);
       onRefresh();
-    } catch {
-      // Error will surface on next refresh
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const action = pendingAction.action === "merge" ? "merge" : "close";
+      setActionError(classifyActionError(message, action));
+      setPendingAction(null);
     } finally {
       setActionLoading(false);
-      setPendingAction(null);
     }
   };
 
@@ -120,6 +126,19 @@ export function KanbanView({ prs, repo, onRefresh }: KanbanViewProps) {
 
   return (
     <>
+      {/* Action error banner */}
+      {actionError && (
+        <div className="mx-4 mt-3 flex items-center gap-2 rounded-lg border border-[var(--color-red)]/20 bg-[var(--color-red)]/5 px-3 py-2">
+          <p className="flex-1 text-[12px] text-[var(--color-red)]">{actionError}</p>
+          <button
+            type="button"
+            onClick={() => setActionError(null)}
+            className="shrink-0 p-0.5 cursor-pointer text-[var(--color-red)]/60 hover:text-[var(--color-red)] transition-colors"
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
+      )}
       <div className="flex h-full gap-3 p-4 overflow-x-auto min-w-0">
         {COLUMNS.map((col) => {
           const items = columnPRs[col.id];

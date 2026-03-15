@@ -1,6 +1,19 @@
 import { describe, it, expect } from "vitest";
-import { filterPRs, prMatchesGroup, groupPRs } from "../lib/prHelpers";
+import {
+  filterPRs,
+  prMatchesGroup,
+  groupPRs,
+  countApprovals,
+  hasChangesRequested,
+  countReviewers,
+  prMatchesReview,
+  sortGroupPRs,
+} from "../lib/prHelpers";
 import type { PullRequest, LabelGroup } from "../types";
+
+function makeGroup(overrides: Partial<LabelGroup> & { name: string }): LabelGroup {
+  return { labels: [], match: "all", sort: "updated", priority: 0, exclude: [], ...overrides };
+}
 
 function makePR(overrides: Partial<PullRequest> = {}): PullRequest {
   return {
@@ -113,7 +126,7 @@ describe("prMatchesGroup", () => {
         { id: "2", name: "ci-passed", color: "", description: "" },
       ],
     });
-    const group: LabelGroup = { name: "ready", labels: ["approved", "ci-passed"] };
+    const group = makeGroup({ name: "ready", labels: ["approved", "ci-passed"] });
     expect(prMatchesGroup(pr, group)).toBe(true);
   });
 
@@ -121,13 +134,13 @@ describe("prMatchesGroup", () => {
     const pr = makePR({
       labels: [{ id: "1", name: "approved", color: "", description: "" }],
     });
-    const group: LabelGroup = { name: "ready", labels: ["approved", "ci-passed"] };
+    const group = makeGroup({ name: "ready", labels: ["approved", "ci-passed"] });
     expect(prMatchesGroup(pr, group)).toBe(false);
   });
 
   it("returns true for empty group labels (matches all)", () => {
     const pr = makePR({ labels: [] });
-    const group: LabelGroup = { name: "all", labels: [] };
+    const group = makeGroup({ name: "all" });
     expect(prMatchesGroup(pr, group)).toBe(true);
   });
 
@@ -135,7 +148,7 @@ describe("prMatchesGroup", () => {
     const pr = makePR({
       labels: [{ id: "1", name: "Approved", color: "", description: "" }],
     });
-    const group: LabelGroup = { name: "ready", labels: ["approved"] };
+    const group = makeGroup({ name: "ready", labels: ["approved"] });
     expect(prMatchesGroup(pr, group)).toBe(true);
   });
 
@@ -147,7 +160,7 @@ describe("prMatchesGroup", () => {
         { id: "3", name: "extra", color: "", description: "" },
       ],
     });
-    const group: LabelGroup = { name: "ready", labels: ["approved"] };
+    const group = makeGroup({ name: "ready", labels: ["approved"] });
     expect(prMatchesGroup(pr, group)).toBe(true);
   });
 });
@@ -167,8 +180,8 @@ describe("groupPRs", () => {
   ];
 
   const groups: LabelGroup[] = [
-    { name: "ready", labels: ["approved", "ci-passed"] },
-    { name: "review", labels: ["needs-review"] },
+    makeGroup({ name: "ready", labels: ["approved", "ci-passed"] }),
+    makeGroup({ name: "review", labels: ["needs-review"] }),
   ];
 
   it("assigns PR to first matching group", () => {
@@ -188,8 +201,8 @@ describe("groupPRs", () => {
 
   it("does not assign a PR to multiple groups", () => {
     const overlappingGroups: LabelGroup[] = [
-      { name: "first", labels: ["approved"] },
-      { name: "second", labels: ["approved", "ci-passed"] },
+      makeGroup({ name: "first", labels: ["approved"] }),
+      makeGroup({ name: "second", labels: ["approved", "ci-passed"] }),
     ];
     const result = groupPRs(prs, overlappingGroups);
     // PR #1 has both approved and ci-passed, but should only be in "first"
@@ -261,21 +274,245 @@ describe("prMatchesGroup - additional edge cases", () => {
     const pr = makePR({
       labels: [{ id: "1", name: "size:S", color: "", description: "" }],
     });
-    const group: LabelGroup = { name: "small", labels: ["size:S"] };
-    expect(prMatchesGroup(pr, group)).toBe(true);
+    expect(prMatchesGroup(pr, makeGroup({ name: "small", labels: ["size:S"] }))).toBe(true);
   });
 
   it("handles group labels with slashes", () => {
     const pr = makePR({
       labels: [{ id: "1", name: "bug/critical", color: "", description: "" }],
     });
-    const group: LabelGroup = { name: "critical", labels: ["bug/critical"] };
-    expect(prMatchesGroup(pr, group)).toBe(true);
+    expect(prMatchesGroup(pr, makeGroup({ name: "critical", labels: ["bug/critical"] }))).toBe(
+      true,
+    );
   });
 
   it("returns false for no labels on PR when group requires labels", () => {
     const pr = makePR({ labels: [] });
-    const group: LabelGroup = { name: "test", labels: ["required"] };
+    expect(prMatchesGroup(pr, makeGroup({ name: "test", labels: ["required"] }))).toBe(false);
+  });
+
+  it("matches with 'any' match mode (OR logic)", () => {
+    const pr = makePR({
+      labels: [{ id: "1", name: "bug", color: "", description: "" }],
+    });
+    const group = makeGroup({ name: "issues", labels: ["bug", "feature"], match: "any" });
+    expect(prMatchesGroup(pr, group)).toBe(true);
+  });
+
+  it("fails 'any' match when no labels match", () => {
+    const pr = makePR({
+      labels: [{ id: "1", name: "docs", color: "", description: "" }],
+    });
+    const group = makeGroup({ name: "issues", labels: ["bug", "feature"], match: "any" });
     expect(prMatchesGroup(pr, group)).toBe(false);
+  });
+
+  it("excludes PRs with excluded labels", () => {
+    const pr = makePR({
+      labels: [
+        { id: "1", name: "approved", color: "", description: "" },
+        { id: "2", name: "wip", color: "", description: "" },
+      ],
+    });
+    const group = makeGroup({ name: "ready", labels: ["approved"], exclude: ["wip"] });
+    expect(prMatchesGroup(pr, group)).toBe(false);
+  });
+
+  it("matches when PR has none of the excluded labels", () => {
+    const pr = makePR({
+      labels: [{ id: "1", name: "approved", color: "", description: "" }],
+    });
+    const group = makeGroup({
+      name: "ready",
+      labels: ["approved"],
+      exclude: ["wip", "do-not-merge"],
+    });
+    expect(prMatchesGroup(pr, group)).toBe(true);
+  });
+});
+
+describe("review helpers", () => {
+  it("countApprovals returns 0 when no reviews", () => {
+    expect(countApprovals(makePR())).toBe(0);
+  });
+
+  it("countApprovals counts APPROVED reviews", () => {
+    const pr = makePR({
+      latestReviews: [
+        { author: { login: "a" }, state: "APPROVED", submittedAt: "" },
+        { author: { login: "b" }, state: "COMMENTED", submittedAt: "" },
+        { author: { login: "c" }, state: "APPROVED", submittedAt: "" },
+      ],
+    });
+    expect(countApprovals(pr)).toBe(2);
+  });
+
+  it("hasChangesRequested returns false when no reviews", () => {
+    expect(hasChangesRequested(makePR())).toBe(false);
+  });
+
+  it("hasChangesRequested returns true when changes requested", () => {
+    const pr = makePR({
+      latestReviews: [{ author: { login: "a" }, state: "CHANGES_REQUESTED", submittedAt: "" }],
+    });
+    expect(hasChangesRequested(pr)).toBe(true);
+  });
+
+  it("countReviewers returns 0 when no requests", () => {
+    expect(countReviewers(makePR())).toBe(0);
+  });
+
+  it("countReviewers counts pending requests", () => {
+    const pr = makePR({
+      reviewRequests: [{ login: "a" }, { login: "b" }],
+    });
+    expect(countReviewers(pr)).toBe(2);
+  });
+});
+
+describe("prMatchesReview", () => {
+  it("matches min_approvals", () => {
+    const pr = makePR({
+      latestReviews: [
+        { author: { login: "a" }, state: "APPROVED", submittedAt: "" },
+        { author: { login: "b" }, state: "APPROVED", submittedAt: "" },
+      ],
+    });
+    expect(prMatchesReview(pr, { min_approvals: 2 })).toBe(true);
+    expect(prMatchesReview(pr, { min_approvals: 3 })).toBe(false);
+  });
+
+  it("matches max_approvals (0 = no approvals)", () => {
+    const pr = makePR({ latestReviews: [] });
+    expect(prMatchesReview(pr, { max_approvals: 0 })).toBe(true);
+  });
+
+  it("fails max_approvals when PR has too many", () => {
+    const pr = makePR({
+      latestReviews: [{ author: { login: "a" }, state: "APPROVED", submittedAt: "" }],
+    });
+    expect(prMatchesReview(pr, { max_approvals: 0 })).toBe(false);
+  });
+
+  it("matches changes_requested: true", () => {
+    const pr = makePR({
+      latestReviews: [{ author: { login: "a" }, state: "CHANGES_REQUESTED", submittedAt: "" }],
+    });
+    expect(prMatchesReview(pr, { changes_requested: true })).toBe(true);
+  });
+
+  it("matches changes_requested: false (no changes requested)", () => {
+    const pr = makePR({ latestReviews: [] });
+    expect(prMatchesReview(pr, { changes_requested: false })).toBe(true);
+  });
+
+  it("fails changes_requested: false when changes are requested", () => {
+    const pr = makePR({
+      latestReviews: [{ author: { login: "a" }, state: "CHANGES_REQUESTED", submittedAt: "" }],
+    });
+    expect(prMatchesReview(pr, { changes_requested: false })).toBe(false);
+  });
+
+  it("matches review_decision", () => {
+    const pr = makePR({ reviewDecision: "APPROVED" });
+    expect(prMatchesReview(pr, { review_decision: ["APPROVED"] })).toBe(true);
+    expect(prMatchesReview(pr, { review_decision: ["REVIEW_REQUIRED"] })).toBe(false);
+  });
+
+  it("matches review_decision case-insensitively", () => {
+    const pr = makePR({ reviewDecision: "APPROVED" });
+    expect(prMatchesReview(pr, { review_decision: ["approved"] })).toBe(true);
+  });
+
+  it("matches min_reviewers", () => {
+    const pr = makePR({ reviewRequests: [{ login: "a" }, { login: "b" }] });
+    expect(prMatchesReview(pr, { min_reviewers: 1 })).toBe(true);
+    expect(prMatchesReview(pr, { min_reviewers: 3 })).toBe(false);
+  });
+
+  it("matches max_reviewers (0 = no reviewers assigned)", () => {
+    const pr = makePR({ reviewRequests: [] });
+    expect(prMatchesReview(pr, { max_reviewers: 0 })).toBe(true);
+  });
+
+  it("combines multiple conditions (AND)", () => {
+    const pr = makePR({
+      latestReviews: [
+        { author: { login: "a" }, state: "APPROVED", submittedAt: "" },
+        { author: { login: "b" }, state: "APPROVED", submittedAt: "" },
+      ],
+      reviewRequests: [],
+    });
+    expect(prMatchesReview(pr, { min_approvals: 2, changes_requested: false })).toBe(true);
+    expect(prMatchesReview(pr, { min_approvals: 3, changes_requested: false })).toBe(false);
+  });
+
+  it("integrates with prMatchesGroup", () => {
+    const pr = makePR({
+      labels: [{ id: "1", name: "approved", color: "", description: "" }],
+      latestReviews: [{ author: { login: "a" }, state: "APPROVED", submittedAt: "" }],
+    });
+    const group = makeGroup({
+      name: "ready",
+      labels: ["approved"],
+      review: { min_approvals: 1 },
+    });
+    expect(prMatchesGroup(pr, group)).toBe(true);
+  });
+
+  it("prMatchesGroup fails when review condition fails", () => {
+    const pr = makePR({
+      labels: [{ id: "1", name: "approved", color: "", description: "" }],
+      latestReviews: [],
+    });
+    const group = makeGroup({
+      name: "ready",
+      labels: ["approved"],
+      review: { min_approvals: 1 },
+    });
+    expect(prMatchesGroup(pr, group)).toBe(false);
+  });
+});
+
+describe("sortGroupPRs", () => {
+  const prs = [
+    makePR({
+      number: 1,
+      title: "C PR",
+      updatedAt: "2024-01-03T00:00:00Z",
+      createdAt: "2024-01-01T00:00:00Z",
+    }),
+    makePR({
+      number: 2,
+      title: "A PR",
+      updatedAt: "2024-01-01T00:00:00Z",
+      createdAt: "2024-01-03T00:00:00Z",
+    }),
+    makePR({
+      number: 3,
+      title: "B PR",
+      updatedAt: "2024-01-02T00:00:00Z",
+      createdAt: "2024-01-02T00:00:00Z",
+    }),
+  ];
+
+  it("sorts by updated (default, newest first)", () => {
+    const sorted = sortGroupPRs(prs, "updated");
+    expect(sorted.map((p) => p.number)).toEqual([1, 3, 2]);
+  });
+
+  it("sorts by created (newest first)", () => {
+    const sorted = sortGroupPRs(prs, "created");
+    expect(sorted.map((p) => p.number)).toEqual([2, 3, 1]);
+  });
+
+  it("sorts by title (alphabetical)", () => {
+    const sorted = sortGroupPRs(prs, "title");
+    expect(sorted.map((p) => p.number)).toEqual([2, 3, 1]);
+  });
+
+  it("returns same array for single item", () => {
+    const single = [makePR({ number: 1 })];
+    expect(sortGroupPRs(single, "updated")).toEqual(single);
   });
 });

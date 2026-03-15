@@ -25,9 +25,12 @@ ready-to-merge:
 `;
     const config = parseTriageConfig(yaml);
     expect(config.groups).toHaveLength(1);
-    expect(config.groups[0]).toEqual({
+    expect(config.groups[0]).toMatchObject({
       name: "ready-to-merge",
       labels: ["approved", "ci-passed"],
+      match: "all",
+      sort: "updated",
+      exclude: [],
     });
   });
 
@@ -119,15 +122,89 @@ special:
     expect(config.groups).toEqual([]);
   });
 
-  it("handles deeply nested values (ignores non-array values)", () => {
+  it("parses enhanced format with object values", () => {
     const yaml = `
 group:
-  nested:
-    - label
+  labels:
+    - label-a
+  description: "Test group"
+  color: "#ff0000"
+  match: any
+  sort: title
+  priority: 5
+  exclude:
+    - wip
 `;
     const config = parseTriageConfig(yaml);
-    // The value of "group" is an object, not an array, so it's skipped
-    expect(config.groups).toEqual([]);
+    expect(config.groups).toHaveLength(1);
+    expect(config.groups[0]).toMatchObject({
+      name: "group",
+      labels: ["label-a"],
+      description: "Test group",
+      color: "#ff0000",
+      match: "any",
+      sort: "title",
+      priority: 5,
+      exclude: ["wip"],
+    });
+  });
+
+  it("parses enhanced format with review conditions", () => {
+    const yaml = `
+needs-approval:
+  labels:
+    - ready
+  review:
+    min_approvals: 2
+    changes_requested: false
+    max_reviewers: 0
+`;
+    const config = parseTriageConfig(yaml);
+    expect(config.groups).toHaveLength(1);
+    expect(config.groups[0].review).toEqual({
+      min_approvals: 2,
+      changes_requested: false,
+      max_reviewers: 0,
+    });
+  });
+
+  it("parses review_decision as string array", () => {
+    const yaml = `
+approved:
+  review:
+    review_decision:
+      - APPROVED
+`;
+    const config = parseTriageConfig(yaml);
+    expect(config.groups[0].review?.review_decision).toEqual(["APPROVED"]);
+  });
+
+  it("ignores invalid review conditions", () => {
+    const yaml = `
+group:
+  labels:
+    - test
+  review:
+    min_approvals: "not a number"
+`;
+    const config = parseTriageConfig(yaml);
+    expect(config.groups[0].review).toBeUndefined();
+  });
+
+  it("sorts groups by priority", () => {
+    const yaml = `
+low:
+  priority: 10
+  labels:
+    - low
+high:
+  priority: 1
+  labels:
+    - high
+`;
+    const config = parseTriageConfig(yaml);
+    expect(config.groups[0].name).toBe("high");
+    expect(config.groups[1].name).toBe("low");
   });
 
   it("handles YAML with only comments", () => {

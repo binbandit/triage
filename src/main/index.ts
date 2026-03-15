@@ -67,7 +67,7 @@ ipcMain.handle(
       "pr",
       "list",
       "--json",
-      "number,title,url,labels,state,author,body,createdAt,updatedAt,headRefName,isDraft",
+      "number,title,url,labels,state,author,body,createdAt,updatedAt,headRefName,isDraft,reviewDecision,latestReviews,reviewRequests",
       "--limit",
       String(limit),
       "--state",

@@ -7,9 +7,14 @@ import {
   ExternalLink,
   FileEdit,
   CircleDot,
+  Check,
+  MessageSquare,
+  AlertTriangle,
+  Users,
 } from "lucide-react";
 import type { PullRequest } from "../types";
 import { LabelBadge } from "./LabelBadge";
+import { countApprovals, hasChangesRequested, countReviewers } from "../lib/prHelpers";
 import { parseLinkedIssues } from "../lib/parseIssues";
 
 interface PRRowProps {
@@ -29,6 +34,55 @@ function timeAgo(dateStr: string): string {
   if (days < 30) return `${days}d`;
   const months = Math.floor(days / 30);
   return `${months}mo`;
+}
+
+function ReviewIndicators({ pr }: { pr: PullRequest }) {
+  const approvals = countApprovals(pr);
+  const changesReq = hasChangesRequested(pr);
+  const reviewers = countReviewers(pr);
+  const hasReviewData = approvals > 0 || changesReq || reviewers > 0 || pr.reviewDecision;
+
+  if (!hasReviewData) return null;
+
+  return (
+    <>
+      <span className="text-[var(--color-fg-dim)]">&middot;</span>
+      {approvals > 0 && (
+        <span
+          className="inline-flex items-center gap-0.5 text-[var(--color-green)]"
+          title={`${approvals} approval${approvals > 1 ? "s" : ""}`}
+        >
+          <Check className="size-3" />
+          <span>{approvals}</span>
+        </span>
+      )}
+      {changesReq && (
+        <span
+          className="inline-flex items-center gap-0.5 text-[var(--color-amber)]"
+          title="Changes requested"
+        >
+          <AlertTriangle className="size-3" />
+        </span>
+      )}
+      {reviewers > 0 && (
+        <span
+          className="inline-flex items-center gap-0.5 text-[var(--color-fg-muted)]"
+          title={`${reviewers} reviewer${reviewers > 1 ? "s" : ""} requested`}
+        >
+          <Users className="size-3" />
+          <span>{reviewers}</span>
+        </span>
+      )}
+      {!approvals && !changesReq && pr.reviewDecision === "REVIEW_REQUIRED" && (
+        <span
+          className="inline-flex items-center gap-0.5 text-[var(--color-fg-dim)]"
+          title="Review required"
+        >
+          <MessageSquare className="size-3" />
+        </span>
+      )}
+    </>
+  );
 }
 
 export function PRRow({ pr, repo, highlightLabels = [] }: PRRowProps) {
@@ -112,6 +166,7 @@ export function PRRow({ pr, repo, highlightLabels = [] }: PRRowProps) {
             <span className="font-mono text-[var(--color-fg-dim)] truncate max-w-[140px]">
               {pr.headRefName}
             </span>
+            <ReviewIndicators pr={pr} />
           </div>
 
           {/* Labels */}

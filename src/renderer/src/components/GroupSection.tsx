@@ -5,6 +5,8 @@ import { PRRow } from "./PRRow";
 
 interface GroupSectionProps {
   name: string;
+  description?: string;
+  color?: string;
   prs: PullRequest[];
   repo: string;
   highlightLabels?: string[];
@@ -13,6 +15,8 @@ interface GroupSectionProps {
 
 export function GroupSection({
   name,
+  description,
+  color,
   prs,
   repo,
   highlightLabels = [],
@@ -36,16 +40,24 @@ export function GroupSection({
           transition-colors duration-100
         "
       >
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 min-w-0">
+          {color && (
+            <span className="shrink-0 size-2 rounded-full" style={{ backgroundColor: color }} />
+          )}
           <span className="text-[12px] font-semibold uppercase tracking-wider text-[var(--color-fg-secondary)]">
             {name}
           </span>
           <span className="text-[11px] font-mono text-[var(--color-fg-dim)] tabular-nums">
             {prs.length}
           </span>
+          {description && (
+            <span className="text-[11px] text-[var(--color-fg-dim)] truncate hidden sm:inline">
+              {description}
+            </span>
+          )}
         </div>
         <ChevronDown
-          className={`size-3.5 text-[var(--color-fg-dim)] transition-transform duration-150 ${
+          className={`size-3.5 shrink-0 text-[var(--color-fg-dim)] transition-transform duration-150 ${
             open ? "" : "-rotate-90"
           }`}
         />

@@ -11,6 +11,16 @@ export interface PRAuthor {
   name?: string;
 }
 
+export interface PRReview {
+  author: { login: string };
+  state: "APPROVED" | "CHANGES_REQUESTED" | "COMMENTED" | "DISMISSED";
+  submittedAt: string;
+}
+
+export interface PRReviewRequest {
+  login: string;
+}
+
 export interface PullRequest {
   number: number;
   title: string;
@@ -25,11 +35,43 @@ export interface PullRequest {
   isDraft: boolean;
   closedAt?: string;
   mergedAt?: string;
+  reviewDecision?: string;
+  latestReviews?: PRReview[];
+  reviewRequests?: PRReviewRequest[];
+}
+
+export type MatchMode = "all" | "any";
+export type SortField = "updated" | "created" | "title";
+
+/**
+ * Review-based conditions for group matching.
+ * All specified conditions must be met (AND logic).
+ */
+export interface ReviewConditions {
+  /** Minimum number of approvals required */
+  min_approvals?: number;
+  /** Maximum number of approvals (e.g. 0 = "has no approvals") */
+  max_approvals?: number;
+  /** Whether changes have been requested (true = must have, false = must not have) */
+  changes_requested?: boolean;
+  /** reviewDecision matches one of these values */
+  review_decision?: string[];
+  /** Minimum number of pending review requests */
+  min_reviewers?: number;
+  /** Maximum number of pending review requests (e.g. 0 = "no reviewers assigned") */
+  max_reviewers?: number;
 }
 
 export interface LabelGroup {
   name: string;
   labels: string[];
+  description?: string;
+  color?: string;
+  match: MatchMode;
+  sort: SortField;
+  priority: number;
+  exclude: string[];
+  review?: ReviewConditions;
 }
 
 export interface TriageConfig {
