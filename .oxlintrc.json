@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "plugins": ["react", "unicorn", "import"],
+  "rules": {
+    "no-unused-vars": ["error", { "varsIgnorePattern": "^[A-Z_]" }],
+    "no-console": "off"
+  },
+  "ignorePatterns": ["out", "dist", "node_modules"]
+}
