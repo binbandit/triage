@@ -19,7 +19,7 @@ export function usePRs(): UsePRsReturn {
     try {
       const options: { state: string; limit: number; repo?: string } = {
         state: "open",
-        limit: 100,
+        limit: 1000,
       };
       if (repo) {
         options.repo = repo;

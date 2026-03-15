@@ -62,7 +62,7 @@ function execGh(args: string[]): Promise<unknown> {
 ipcMain.handle(
   "gh:list-prs",
   async (_event, options: { repo?: string; state?: string; limit?: number }) => {
-    const { repo, state = "open", limit = 100 } = options;
+    const { repo, state = "open", limit = 1000 } = options;
     const args = [
       "pr",
       "list",
