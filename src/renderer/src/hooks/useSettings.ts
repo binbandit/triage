@@ -6,6 +6,7 @@ const STORAGE_KEY = "triage:settings";
 const DEFAULT_SETTINGS: Settings = {
   repo: "",
   theme: "dark",
+  viewMode: "list",
 };
 
 function loadSettings(): Settings {

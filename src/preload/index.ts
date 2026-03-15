@@ -8,5 +8,11 @@ contextBridge.exposeInMainWorld("api", {
   currentRepo: () => ipcRenderer.invoke("gh:current-repo"),
   fetchConfig: (options: { repo: string; path?: string }) =>
     ipcRenderer.invoke("gh:fetch-config", options),
+  closePR: (options: { repo: string; number: number; comment?: string }) =>
+    ipcRenderer.invoke("gh:close-pr", options),
+  mergePR: (options: { repo: string; number: number; comment?: string }) =>
+    ipcRenderer.invoke("gh:merge-pr", options),
+  commentPR: (options: { repo: string; number: number; body: string }) =>
+    ipcRenderer.invoke("gh:comment-pr", options),
   openExternal: (url: string) => ipcRenderer.invoke("shell:open-external", url),
 });

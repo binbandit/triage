@@ -125,6 +125,39 @@ ipcMain.handle("gh:fetch-config", async (_event, options: { repo: string; path?:
   }
 });
 
+ipcMain.handle(
+  "gh:close-pr",
+  async (_event, options: { repo: string; number: number; comment?: string }) => {
+    const { repo, number, comment } = options;
+    if (comment) {
+      await execGh(["pr", "comment", String(number), "--repo", repo, "--body", comment]);
+    }
+    await execGh(["pr", "close", String(number), "--repo", repo]);
+    return { success: true };
+  },
+);
+
+ipcMain.handle(
+  "gh:merge-pr",
+  async (_event, options: { repo: string; number: number; comment?: string }) => {
+    const { repo, number, comment } = options;
+    if (comment) {
+      await execGh(["pr", "comment", String(number), "--repo", repo, "--body", comment]);
+    }
+    await execGh(["pr", "merge", String(number), "--repo", repo, "--merge"]);
+    return { success: true };
+  },
+);
+
+ipcMain.handle(
+  "gh:comment-pr",
+  async (_event, options: { repo: string; number: number; body: string }) => {
+    const { repo, number, body } = options;
+    await execGh(["pr", "comment", String(number), "--repo", repo, "--body", body]);
+    return { success: true };
+  },
+);
+
 ipcMain.handle("shell:open-external", async (_event, url: string) => {
   shell.openExternal(url);
 });

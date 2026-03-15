@@ -37,10 +37,12 @@ export interface TriageConfig {
 }
 
 export type Theme = "dark" | "light";
+export type ViewMode = "list" | "kanban";
 
 export interface Settings {
   repo: string;
   theme: Theme;
+  viewMode: ViewMode;
 }
 
 export interface AuthStatus {
@@ -59,12 +61,19 @@ export interface ConfigFetchResult {
   found: boolean;
 }
 
+export interface ActionResult {
+  success: boolean;
+}
+
 export interface TriageAPI {
   listPRs: (options: { repo?: string; state?: string; limit?: number }) => Promise<PullRequest[]>;
   getPR: (options: { repo?: string; number: number }) => Promise<PullRequest>;
   authStatus: () => Promise<AuthStatus>;
   currentRepo: () => Promise<RepoInfo | null>;
   fetchConfig: (options: { repo: string; path?: string }) => Promise<ConfigFetchResult>;
+  closePR: (options: { repo: string; number: number; comment?: string }) => Promise<ActionResult>;
+  mergePR: (options: { repo: string; number: number; comment?: string }) => Promise<ActionResult>;
+  commentPR: (options: { repo: string; number: number; body: string }) => Promise<ActionResult>;
   openExternal: (url: string) => Promise<void>;
 }
 
