@@ -33,7 +33,7 @@ The search bar filters PRs by title, author, `#number`, or label name.
 
 Add a `.triage.yml` file to the root of any repository to define label-based groups. When Triage detects this file, PRs are automatically sorted into collapsible sections based on their labels.
 
-### Format
+### Simple format
 
 Each top-level key is a group name. Its value is an array of label strings. A PR belongs to a group when it has **all** of the listed labels. PRs are assigned to the **first matching** group. Unmatched PRs appear under "other".
 
@@ -41,19 +41,85 @@ Each top-level key is a group name. Its value is an array of label strings. A PR
 ready-to-merge:
   - approved
   - ci-passed
-  - has:approval
 
 needs-review:
   - needs-review
-  - size:S
 
 blocked:
   - do-not-merge
 ```
 
-### Example
+### Enhanced format
 
-Given a PR with labels `approved`, `ci-passed`, and `has:approval`, it would appear under the **ready-to-merge** group. A PR with only `needs-review` would not match that group (missing `size:S`) and would fall to **other**.
+Groups can be objects with additional options:
+
+```yaml
+ready-to-merge:
+  description: "PRs that have passed all checks and are ready to land"
+  color: "#22c55e"
+  match: all # all (AND, default) | any (OR)
+  sort: updated # updated (default) | created | title
+  priority: 0 # lower = rendered first
+  labels:
+    - approved
+    - ci-passed
+  exclude:
+    - do-not-merge
+    - wip
+  review:
+    min_approvals: 2
+    changes_requested: false
+```
+
+| Field         | Type                              | Default       | Description                                                                    |
+| ------------- | --------------------------------- | ------------- | ------------------------------------------------------------------------------ |
+| `labels`      | `string[]`                        | `[]`          | Label names for matching                                                       |
+| `match`       | `all` \| `any`                    | `all`         | `all` = PR must have every label (AND). `any` = PR must have at least one (OR) |
+| `exclude`     | `string[]`                        | `[]`          | PR must NOT have any of these labels                                           |
+| `description` | `string`                          | -             | Shown in the group section header                                              |
+| `color`       | `string`                          | -             | Color dot shown next to group name                                             |
+| `sort`        | `updated` \| `created` \| `title` | `updated`     | Sort order within the group                                                    |
+| `priority`    | `number`                          | order in file | Lower numbers render first                                                     |
+
+### Review conditions
+
+The `review` key lets you match PRs based on their review status:
+
+```yaml
+needs-review:
+  description: "PRs waiting for initial review"
+  color: "#f59e0b"
+  review:
+    max_approvals: 0 # has no approvals
+    min_reviewers: 1 # at least one reviewer assigned
+
+approved-but-blocked:
+  description: "Approved PRs with requested changes"
+  review:
+    min_approvals: 1
+    changes_requested: true
+
+ready-to-ship:
+  description: "Fully approved, no blockers"
+  labels:
+    - ci-passed
+  review:
+    min_approvals: 2
+    changes_requested: false
+    review_decision:
+      - APPROVED
+```
+
+| Condition           | Type       | Description                                                                          |
+| ------------------- | ---------- | ------------------------------------------------------------------------------------ |
+| `min_approvals`     | `number`   | Minimum approval count                                                               |
+| `max_approvals`     | `number`   | Maximum approval count (use `0` for "no approvals")                                  |
+| `changes_requested` | `boolean`  | `true` = must have changes requested, `false` = must not                             |
+| `review_decision`   | `string[]` | reviewDecision must match one of: `APPROVED`, `REVIEW_REQUIRED`, `CHANGES_REQUESTED` |
+| `min_reviewers`     | `number`   | Minimum pending review requests                                                      |
+| `max_reviewers`     | `number`   | Maximum pending review requests (use `0` for "no reviewers assigned")                |
+
+All review conditions use AND logic - every specified condition must be met.
 
 ### No config
 
