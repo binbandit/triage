@@ -38,6 +38,7 @@
   --color-green: #22c55e;
   --color-red: #ef4444;
   --color-amber: #f59e0b;
+  --color-purple: #a855f7;
 
   color-scheme: dark;
 }
@@ -62,6 +63,7 @@
   --color-green: #16a34a;
   --color-red: #dc2626;
   --color-amber: #d97706;
+  --color-purple: #9333ea;
 
   color-scheme: light;
 }

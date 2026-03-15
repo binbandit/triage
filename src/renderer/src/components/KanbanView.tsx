@@ -39,7 +39,7 @@ const COLUMNS: ColumnDef[] = [
     id: "merged",
     label: "Merged",
     icon: GitMerge,
-    iconColor: "var(--color-blue)",
+    iconColor: "var(--color-purple)",
     emptyText: "Drop here to merge",
   },
 ];
@@ -120,7 +120,7 @@ export function KanbanView({ prs, repo, onRefresh }: KanbanViewProps) {
 
   return (
     <>
-      <div className="flex h-full gap-3 p-4 overflow-x-auto">
+      <div className="flex h-full gap-3 p-4 overflow-x-auto min-w-0">
         {COLUMNS.map((col) => {
           const items = columnPRs[col.id];
           const isOver = dragOverColumn === col.id;
@@ -131,7 +131,7 @@ export function KanbanView({ prs, repo, onRefresh }: KanbanViewProps) {
             <section
               key={col.id}
               aria-label={`${col.label} column`}
-              className="flex flex-col flex-1 min-w-[280px] max-w-[400px]"
+              className="flex flex-col flex-1 min-w-0 basis-0"
               onDragOver={isDropTarget ? (e) => handleDragOver(e, col.id) : undefined}
               onDragLeave={isDropTarget ? handleDragLeave : undefined}
               onDrop={isDropTarget ? (e) => handleDrop(e, col.id) : undefined}

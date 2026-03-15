@@ -30,6 +30,8 @@ function timeAgo(dateStr: string): string {
 }
 
 export function KanbanCard({ pr, repo, onDragStart }: KanbanCardProps) {
+  const canDrag = pr.state === "OPEN";
+
   const handleOpen = () => {
     const url = repo ? `https://github.com/${repo}/pull/${pr.number}` : pr.url;
     window.api.openExternal(url);
@@ -37,26 +39,28 @@ export function KanbanCard({ pr, repo, onDragStart }: KanbanCardProps) {
 
   return (
     <li
-      draggable
-      onDragStart={(e) => onDragStart(e, pr)}
-      className="
+      draggable={canDrag}
+      onDragStart={canDrag ? (e) => onDragStart(e, pr) : undefined}
+      className={`
         group list-none rounded-lg border border-[var(--color-border)]
         bg-[var(--color-bg-raised)] p-3
-        cursor-grab active:cursor-grabbing
         hover:border-[var(--color-border-strong)]
         transition-colors
-      "
+        ${canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-default"}
+      `}
     >
       {/* Top row: drag handle + title + external link */}
       <div className="flex items-start gap-2">
-        <GripVertical className="size-3.5 shrink-0 mt-0.5 text-[var(--color-fg-dim)] opacity-0 group-hover:opacity-100 transition-opacity" />
+        {canDrag && (
+          <GripVertical className="size-3.5 shrink-0 mt-0.5 text-[var(--color-fg-dim)] opacity-0 group-hover:opacity-100 transition-opacity" />
+        )}
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-1.5">
             {pr.isDraft && (
               <FileEdit className="size-3 shrink-0 text-[var(--color-fg-dim)] translate-y-[1px]" />
             )}
             {!pr.isDraft && pr.state === "MERGED" && (
-              <GitMerge className="size-3 shrink-0 text-[var(--color-blue)] translate-y-[1px]" />
+              <GitMerge className="size-3 shrink-0 text-[var(--color-purple)] translate-y-[1px]" />
             )}
             {!pr.isDraft && pr.state === "CLOSED" && (
               <XCircle className="size-3 shrink-0 text-[var(--color-red)] translate-y-[1px]" />

@@ -43,7 +43,7 @@ export function CommentDialog({
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <ActionIcon
-              className={`size-4 ${isMerge ? "text-[var(--color-green)]" : "text-[var(--color-red)]"}`}
+              className={`size-4 ${isMerge ? "text-[var(--color-purple)]" : "text-[var(--color-red)]"}`}
             />
             <h2 className="text-[14px] font-semibold text-[var(--color-fg)]">
               {actionLabel} PR #{pr.number}

@@ -71,7 +71,7 @@ export function PRRow({ pr, repo, highlightLabels = [] }: PRRowProps) {
         <div className="shrink-0 mt-[3px]">
           {pr.isDraft && <FileEdit className="size-3.5 text-[var(--color-fg-dim)]" />}
           {!pr.isDraft && pr.state === "MERGED" && (
-            <GitMerge className="size-3.5 text-[var(--color-blue)]" />
+            <GitMerge className="size-3.5 text-[var(--color-purple)]" />
           )}
           {!pr.isDraft && pr.state === "CLOSED" && (
             <XCircle className="size-3.5 text-[var(--color-red)]" />
