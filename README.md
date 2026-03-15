@@ -69,27 +69,27 @@ Settings and the last-viewed repository are persisted in localStorage.
 
 ## Tech stack
 
-| Layer | Technology |
-|---|---|
-| Framework | Electron 41 + electron-vite 5 |
-| Frontend | React 19, TypeScript, Vite 8 |
-| Styling | Tailwind CSS 4 |
-| Icons | Lucide React |
-| Data | GitHub CLI (`gh`) via IPC |
-| Linting | oxlint |
-| Formatting | oxfmt |
-| Package manager | Bun |
+| Layer           | Technology                    |
+| --------------- | ----------------------------- |
+| Framework       | Electron 41 + electron-vite 5 |
+| Frontend        | React 19, TypeScript, Vite 8  |
+| Styling         | Tailwind CSS 4                |
+| Icons           | Lucide React                  |
+| Data            | GitHub CLI (`gh`) via IPC     |
+| Linting         | oxlint                        |
+| Formatting      | oxfmt                         |
+| Package manager | Bun                           |
 
 ## Scripts
 
-| Command | Description |
-|---|---|
-| `bun run dev` | Start dev server with hot reload |
-| `bun run build` | Production build to `out/` |
-| `bun run lint` | Run oxlint |
-| `bun run lint:fix` | Run oxlint with auto-fix |
-| `bun run fmt` | Format with oxfmt |
-| `bun run fmt:check` | Check formatting |
+| Command             | Description                      |
+| ------------------- | -------------------------------- |
+| `bun run dev`       | Start dev server with hot reload |
+| `bun run build`     | Production build to `out/`       |
+| `bun run lint`      | Run oxlint                       |
+| `bun run lint:fix`  | Run oxlint with auto-fix         |
+| `bun run fmt`       | Format with oxfmt                |
+| `bun run fmt:check` | Check formatting                 |
 
 ## License
 
