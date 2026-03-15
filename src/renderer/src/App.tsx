@@ -1,14 +1,15 @@
 import { useState, useEffect, useMemo, useCallback, type KeyboardEvent } from "react";
-import { Settings as SettingsIcon, RefreshCw, GitFork } from "lucide-react";
+import { Settings as SettingsIcon, RefreshCw, GitFork, List, Columns3 } from "lucide-react";
 import { useSettings } from "./hooks/useSettings";
 import { usePRs } from "./hooks/usePRs";
 import { useTriageConfig } from "./hooks/useTriageConfig";
 import { SearchBar } from "./components/SearchBar";
 import { PRRow } from "./components/PRRow";
 import { GroupSection } from "./components/GroupSection";
+import { KanbanView } from "./components/KanbanView";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { EmptyState } from "./components/EmptyState";
-import type { PullRequest, LabelGroup } from "./types";
+import type { PullRequest, LabelGroup, ViewMode } from "./types";
 
 /* ── Helpers ──────────────────────────────────────── */
 
@@ -46,6 +47,38 @@ function groupPRs(
   return { grouped, ungrouped };
 }
 
+/* ── View toggle button ───────────────────────────── */
+
+function ViewToggleButton({
+  active,
+  onClick,
+  label,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className={`
+        p-1.5 cursor-pointer transition-colors first:rounded-l-[5px] last:rounded-r-[5px]
+        ${
+          active
+            ? "bg-[var(--color-bg-overlay)] text-[var(--color-fg-secondary)]"
+            : "text-[var(--color-fg-dim)] hover:text-[var(--color-fg-secondary)]"
+        }
+      `}
+    >
+      {children}
+    </button>
+  );
+}
+
 /* ── App ──────────────────────────────────────────── */
 
 export default function App() {
@@ -55,6 +88,13 @@ export default function App() {
   const [search, setSearch] = useState("");
   const [showSettings, setShowSettings] = useState(false);
   const [repoInput, setRepoInput] = useState(settings.repo);
+
+  const setViewMode = useCallback(
+    (mode: ViewMode) => {
+      setSettings((prev) => ({ ...prev, viewMode: mode }));
+    },
+    [setSettings],
+  );
 
   const loadRepo = useCallback(
     (repo: string) => {
@@ -139,6 +179,27 @@ export default function App() {
                 {loading ? "..." : filtered.length}
               </span>
             )}
+
+            {/* View toggle */}
+            {settings.repo && (
+              <div className="flex items-center rounded-md border border-[var(--color-border)] mr-1">
+                <ViewToggleButton
+                  active={settings.viewMode === "list"}
+                  onClick={() => setViewMode("list")}
+                  label="List view"
+                >
+                  <List className="size-3.5" />
+                </ViewToggleButton>
+                <ViewToggleButton
+                  active={settings.viewMode === "kanban"}
+                  onClick={() => setViewMode("kanban")}
+                  label="Kanban view"
+                >
+                  <Columns3 className="size-3.5" />
+                </ViewToggleButton>
+              </div>
+            )}
+
             <button
               type="button"
               onClick={() => loadRepo(settings.repo)}
@@ -179,7 +240,7 @@ export default function App() {
       </header>
 
       {/* Content */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-hidden">
         {!settings.repo && <EmptyState type="no-repo" />}
         {settings.repo && loading && prs.length === 0 && <EmptyState type="loading" />}
         {settings.repo && error && <EmptyState type="error" message={error} />}
@@ -188,9 +249,18 @@ export default function App() {
           <EmptyState type="empty" message="No PRs match your filter." />
         )}
 
-        {/* Grouped view */}
-        {hasResults && hasGroups && (
-          <div>
+        {/* Kanban view */}
+        {hasResults && settings.viewMode === "kanban" && (
+          <KanbanView
+            prs={filtered}
+            repo={settings.repo}
+            onRefresh={() => loadRepo(settings.repo)}
+          />
+        )}
+
+        {/* List view - Grouped */}
+        {hasResults && settings.viewMode === "list" && hasGroups && (
+          <div className="h-full overflow-y-auto">
             {grouped.map(
               ({ group, prs: groupPrs }) =>
                 groupPrs.length > 0 && (
@@ -214,9 +284,9 @@ export default function App() {
           </div>
         )}
 
-        {/* Flat view (no config) */}
-        {hasResults && !hasGroups && (
-          <div>
+        {/* List view - Flat (no config) */}
+        {hasResults && settings.viewMode === "list" && !hasGroups && (
+          <div className="h-full overflow-y-auto">
             {filtered.map((pr) => (
               <PRRow key={pr.number} pr={pr} repo={settings.repo} />
             ))}
