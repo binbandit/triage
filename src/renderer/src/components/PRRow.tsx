@@ -136,23 +136,27 @@ export function PRRow({ pr, repo, highlightLabels = [] }: PRRowProps) {
 
       {/* Expanded linked issues */}
       {expanded && hasIssues && (
-        <div className="pl-[52px] pr-5 pb-3">
-          <div className="flex flex-wrap gap-x-3 gap-y-1">
-            {linkedIssues.map((issue) => (
+        <div className="pl-[52px] pr-5 pb-3.5">
+          <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-inset)] overflow-hidden">
+            {linkedIssues.map((issue, i) => (
               <button
                 key={issue.number}
                 type="button"
                 onClick={() => handleIssueClick(issue.number)}
-                className="
-                  inline-flex items-center gap-1 cursor-pointer
-                  text-[11px] text-[var(--color-fg-muted)]
-                  hover:text-[var(--color-blue)]
-                  transition-colors
-                "
+                className={`
+                  w-full flex items-center gap-2.5 px-3 py-2 cursor-pointer
+                  text-left transition-colors
+                  hover:bg-[var(--color-bg-overlay)]
+                  ${i > 0 ? "border-t border-[var(--color-border)]" : ""}
+                `}
               >
-                <CircleDot className="size-3 shrink-0" />
-                <span className="font-mono">#{issue.number}</span>
-                <span className="text-[var(--color-fg-dim)] text-[10px]">{issue.keyword}</span>
+                <CircleDot className="size-3.5 shrink-0 text-[var(--color-fg-dim)]" />
+                <span className="text-[12px] font-mono font-medium text-[var(--color-fg-secondary)]">
+                  #{issue.number}
+                </span>
+                <span className="text-[11px] text-[var(--color-fg-muted)] capitalize">
+                  {issue.keyword}
+                </span>
               </button>
             ))}
           </div>
