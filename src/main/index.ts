@@ -113,6 +113,18 @@ ipcMain.handle("gh:current-repo", async () => {
   }
 });
 
+ipcMain.handle("gh:fetch-config", async (_event, options: { repo: string; path?: string }) => {
+  const { repo, path = ".triage.yml" } = options;
+  try {
+    const result = await execGh(["api", `repos/${repo}/contents/${path}`, "--jq", ".content"]);
+    // GitHub returns base64-encoded content
+    const decoded = Buffer.from(String(result), "base64").toString("utf-8");
+    return { content: decoded, found: true };
+  } catch {
+    return { content: null, found: false };
+  }
+});
+
 ipcMain.handle("shell:open-external", async (_event, url: string) => {
   shell.openExternal(url);
 });

@@ -1,11 +1,11 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import type { Settings } from "../types";
 
 const STORAGE_KEY = "triage:settings";
 
 const DEFAULT_SETTINGS: Settings = {
-  requiredLabels: [],
   repo: "",
+  theme: "dark",
 };
 
 function loadSettings(): Settings {
@@ -24,10 +24,24 @@ function persistSettings(settings: Settings): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
 }
 
+function applyTheme(theme: string): void {
+  const root = document.documentElement;
+  if (theme === "light") {
+    root.classList.add("light");
+  } else {
+    root.classList.remove("light");
+  }
+}
+
 type SettingsUpdater = Settings | ((prev: Settings) => Settings);
 
 export function useSettings(): [Settings, (updater: SettingsUpdater) => void] {
   const [settings, setSettingsState] = useState<Settings>(loadSettings);
+
+  // Apply theme on mount and whenever it changes
+  useEffect(() => {
+    applyTheme(settings.theme);
+  }, [settings.theme]);
 
   const setSettings = useCallback((updater: SettingsUpdater) => {
     setSettingsState((prev) => {

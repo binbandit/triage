@@ -1,16 +1,19 @@
 import { useState, useEffect, useMemo, useCallback, type KeyboardEvent } from "react";
-import { Settings as SettingsIcon, RefreshCw, GitBranch } from "lucide-react";
+import { Settings as SettingsIcon, RefreshCw } from "lucide-react";
 import { useSettings } from "./hooks/useSettings";
 import { usePRs } from "./hooks/usePRs";
+import { useTriageConfig } from "./hooks/useTriageConfig";
 import { SearchBar } from "./components/SearchBar";
 import { PRRow } from "./components/PRRow";
+import { GroupSection } from "./components/GroupSection";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { EmptyState } from "./components/EmptyState";
-import type { PullRequest } from "./types";
+import type { PullRequest, LabelGroup } from "./types";
+
+/* ── Helpers ──────────────────────────────────────── */
 
 function filterPRs(prs: PullRequest[], query: string): PullRequest[] {
   if (!query.trim()) return prs;
-
   const q = query.toLowerCase();
   return prs.filter((pr) => {
     if (pr.title.toLowerCase().includes(q)) return true;
@@ -21,40 +24,53 @@ function filterPRs(prs: PullRequest[], query: string): PullRequest[] {
   });
 }
 
-function sortPRs(prs: PullRequest[], requiredLabels: string[]): PullRequest[] {
-  if (requiredLabels.length === 0) return prs;
-
-  return prs.toSorted((a, b) => {
-    const aLabels = a.labels.map((l) => l.name.toLowerCase());
-    const bLabels = b.labels.map((l) => l.name.toLowerCase());
-    const aMatch = requiredLabels.every((rl) => aLabels.includes(rl.toLowerCase()));
-    const bMatch = requiredLabels.every((rl) => bLabels.includes(rl.toLowerCase()));
-
-    if (aMatch && !bMatch) return -1;
-    if (!aMatch && bMatch) return 1;
-    return 0;
-  });
+function prMatchesGroup(pr: PullRequest, group: LabelGroup): boolean {
+  const names = pr.labels.map((l) => l.name.toLowerCase());
+  return group.labels.every((gl) => names.includes(gl.toLowerCase()));
 }
+
+function groupPRs(
+  prs: PullRequest[],
+  groups: LabelGroup[],
+): { grouped: { group: LabelGroup; prs: PullRequest[] }[]; ungrouped: PullRequest[] } {
+  const assigned = new Set<number>();
+  const grouped = groups.map((group) => {
+    const matching = prs.filter((pr) => {
+      if (assigned.has(pr.number)) return false;
+      return prMatchesGroup(pr, group);
+    });
+    for (const pr of matching) assigned.add(pr.number);
+    return { group, prs: matching };
+  });
+  const ungrouped = prs.filter((pr) => !assigned.has(pr.number));
+  return { grouped, ungrouped };
+}
+
+/* ── App ──────────────────────────────────────────── */
 
 export default function App() {
   const [settings, setSettings] = useSettings();
   const { prs, loading, error, fetchPRs } = usePRs();
+  const { config, fetchConfig } = useTriageConfig();
   const [search, setSearch] = useState("");
   const [showSettings, setShowSettings] = useState(false);
   const [repoInput, setRepoInput] = useState(settings.repo);
 
-  const loadPRs = useCallback(() => {
-    if (settings.repo) {
-      fetchPRs(settings.repo);
-    }
-  }, [settings.repo, fetchPRs]);
+  const loadRepo = useCallback(
+    (repo: string) => {
+      if (!repo) return;
+      fetchPRs(repo);
+      fetchConfig(repo);
+    },
+    [fetchPRs, fetchConfig],
+  );
 
-  // Fetch PRs when repo changes in settings
+  // Load on repo change
   useEffect(() => {
-    loadPRs();
-  }, [loadPRs]);
+    loadRepo(settings.repo);
+  }, [settings.repo, loadRepo]);
 
-  // Keep repoInput in sync when settings change externally
+  // Sync input to settings
   useEffect(() => {
     setRepoInput(settings.repo);
   }, [settings.repo]);
@@ -64,8 +80,7 @@ export default function App() {
     if (trimmed !== settings.repo) {
       setSettings((prev) => ({ ...prev, repo: trimmed }));
     } else if (trimmed) {
-      // Same repo, still allow refresh
-      fetchPRs(trimmed);
+      loadRepo(trimmed);
     }
   };
 
@@ -77,84 +92,126 @@ export default function App() {
   };
 
   const filtered = useMemo(() => filterPRs(prs, search), [prs, search]);
-  const sorted = useMemo(
-    () => sortPRs(filtered, settings.requiredLabels),
-    [filtered, settings.requiredLabels],
-  );
 
-  const prCount = prs.length;
-  const filteredCount = sorted.length;
+  const groups = useMemo(() => config?.groups ?? [], [config]);
+  const { grouped, ungrouped } = useMemo(() => groupPRs(filtered, groups), [filtered, groups]);
+
+  const hasGroups = groups.length > 0;
+  const hasResults = filtered.length > 0;
 
   return (
-    <div className="flex flex-col h-screen bg-background text-foreground">
-      {/* Title bar drag region */}
-      <div className="drag-region h-8 shrink-0 border-b border-border-subtle" />
+    <div className="flex flex-col h-screen bg-[var(--color-bg)] text-[var(--color-fg)]">
+      {/* macOS drag region */}
+      <div className="drag-region h-7 shrink-0" />
 
       {/* Header */}
-      <header className="shrink-0 border-b border-border px-4 py-3 space-y-3 no-drag">
-        {/* Top row: repo input + actions */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <GitBranch className="size-4 text-dim shrink-0" />
-            <input
-              type="text"
-              value={repoInput}
-              onChange={(e) => setRepoInput(e.target.value)}
-              onKeyDown={handleRepoKeyDown}
-              onBlur={handleRepoSubmit}
-              placeholder="owner/repo"
-              className="flex-1 min-w-0 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground font-mono placeholder:text-dim outline-none transition-colors focus:border-accent focus:bg-surface-raised"
-            />
-          </div>
+      <header className="shrink-0 border-b border-[var(--color-border-strong)] no-drag">
+        {/* Top bar */}
+        <div className="flex items-center gap-2 px-4 py-2.5">
+          {/* Repo input */}
+          <input
+            type="text"
+            value={repoInput}
+            onChange={(e) => setRepoInput(e.target.value)}
+            onKeyDown={handleRepoKeyDown}
+            onBlur={handleRepoSubmit}
+            placeholder="owner/repo"
+            spellCheck={false}
+            className="
+              flex-1 min-w-0
+              bg-transparent border-none outline-none
+              text-[13px] font-mono text-[var(--color-fg)]
+              placeholder:text-[var(--color-fg-dim)]
+            "
+          />
 
-          <div className="flex items-center gap-1 shrink-0">
+          {/* Actions */}
+          <div className="flex items-center gap-0.5 shrink-0">
             {settings.repo && (
-              <span className="text-xs text-dim tabular-nums mr-2">
-                {loading ? "..." : search ? `${filteredCount}/${prCount}` : prCount} PRs
+              <span className="text-[11px] text-[var(--color-fg-dim)] font-mono tabular-nums mr-1.5">
+                {loading ? "..." : filtered.length}
               </span>
             )}
             <button
               type="button"
-              onClick={loadPRs}
+              onClick={() => loadRepo(settings.repo)}
               disabled={loading || !settings.repo}
-              className="p-2 rounded-lg text-dim hover:text-muted-foreground hover:bg-surface-overlay disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="
+                p-1.5 rounded-md cursor-pointer
+                text-[var(--color-fg-dim)]
+                hover:text-[var(--color-fg-secondary)] hover:bg-[var(--color-bg-overlay)]
+                disabled:opacity-30 disabled:cursor-not-allowed
+                transition-colors
+              "
               aria-label="Refresh"
             >
-              <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
+              <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
             </button>
             <button
               type="button"
               onClick={() => setShowSettings(true)}
-              className="p-2 rounded-lg text-dim hover:text-muted-foreground hover:bg-surface-overlay transition-colors"
+              className="
+                p-1.5 rounded-md cursor-pointer
+                text-[var(--color-fg-dim)]
+                hover:text-[var(--color-fg-secondary)] hover:bg-[var(--color-bg-overlay)]
+                transition-colors
+              "
               aria-label="Settings"
             >
-              <SettingsIcon className="size-4" />
+              <SettingsIcon className="size-3.5" />
             </button>
           </div>
         </div>
 
-        {/* Search bar */}
-        {settings.repo && <SearchBar value={search} onChange={setSearch} />}
+        {/* Search */}
+        {settings.repo && (
+          <div className="px-4 pb-2.5">
+            <SearchBar value={search} onChange={setSearch} />
+          </div>
+        )}
       </header>
 
-      {/* PR List */}
+      {/* Content */}
       <main className="flex-1 overflow-y-auto">
         {!settings.repo && <EmptyState type="no-repo" />}
         {settings.repo && loading && prs.length === 0 && <EmptyState type="loading" />}
         {settings.repo && error && <EmptyState type="error" message={error} />}
         {settings.repo && !loading && !error && prs.length === 0 && <EmptyState type="empty" />}
-        {settings.repo && !error && sorted.length === 0 && prs.length > 0 && (
+        {settings.repo && !error && !hasResults && prs.length > 0 && (
           <EmptyState type="empty" message="No PRs match your filter." />
         )}
-        {sorted.length > 0 && (
+
+        {/* Grouped view */}
+        {hasResults && hasGroups && (
           <div>
-            {sorted.map((pr) => (
-              <PRRow
-                key={pr.number}
-                pr={pr}
-                requiredLabels={settings.requiredLabels}
+            {grouped.map(
+              ({ group, prs: groupPrs }) =>
+                groupPrs.length > 0 && (
+                  <GroupSection
+                    key={group.name}
+                    name={group.name}
+                    prs={groupPrs}
+                    repo={settings.repo}
+                    highlightLabels={group.labels}
+                  />
+                ),
+            )}
+            {ungrouped.length > 0 && (
+              <GroupSection
+                name="other"
+                prs={ungrouped}
                 repo={settings.repo}
+                defaultOpen={groups.length === 0}
               />
+            )}
+          </div>
+        )}
+
+        {/* Flat view (no config) */}
+        {hasResults && !hasGroups && (
+          <div>
+            {filtered.map((pr) => (
+              <PRRow key={pr.number} pr={pr} repo={settings.repo} />
             ))}
           </div>
         )}

@@ -27,9 +27,20 @@ export interface PullRequest {
   mergedAt?: string;
 }
 
+export interface LabelGroup {
+  name: string;
+  labels: string[];
+}
+
+export interface TriageConfig {
+  groups: LabelGroup[];
+}
+
+export type Theme = "dark" | "light";
+
 export interface Settings {
-  requiredLabels: string[];
   repo: string;
+  theme: Theme;
 }
 
 export interface AuthStatus {
@@ -43,11 +54,17 @@ export interface RepoInfo {
   url: string;
 }
 
+export interface ConfigFetchResult {
+  content: string | null;
+  found: boolean;
+}
+
 export interface TriageAPI {
   listPRs: (options: { repo?: string; state?: string; limit?: number }) => Promise<PullRequest[]>;
   getPR: (options: { repo?: string; number: number }) => Promise<PullRequest>;
   authStatus: () => Promise<AuthStatus>;
   currentRepo: () => Promise<RepoInfo | null>;
+  fetchConfig: (options: { repo: string; path?: string }) => Promise<ConfigFetchResult>;
   openExternal: (url: string) => Promise<void>;
 }
 

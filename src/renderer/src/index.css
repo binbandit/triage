@@ -5,58 +5,85 @@
 @import "@fontsource/manrope/700.css";
 
 /*
- * COSS-inspired deep dark theme.
- * Mirrors the ultra-minimal, near-black aesthetic of coss.com
- * using CSS custom properties consumed by Tailwind utilities.
+ * Design system inspired by coss.com:
+ * - Near-black backgrounds with hairline borders
+ * - Clean Manrope typography at restrained sizes
+ * - Warm zinc palette, not cold gray
+ * - Generous negative space, editorial restraint
+ * - Light mode: warm white with same structural DNA
  */
 
 @theme {
-  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-
-  --color-background: #09090b;
-  --color-surface: #0c0c0e;
-  --color-surface-raised: #131316;
-  --color-surface-overlay: #18181b;
-
-  --color-border: #1e1e22;
-  --color-border-subtle: #161619;
-
-  --color-foreground: #fafafa;
-  --color-muted: #71717a;
-  --color-muted-foreground: #a1a1aa;
-  --color-dim: #52525b;
-
-  --color-accent: #3b82f6;
-  --color-accent-muted: #1e3a5f;
-
-  --color-success: #22c55e;
-  --color-warning: #eab308;
-  --color-destructive: #ef4444;
-  --color-info: #3b82f6;
-
-  --color-label-blue: #1d4ed8;
-  --color-label-green: #15803d;
-  --color-label-yellow: #a16207;
-  --color-label-red: #b91c1c;
-  --color-label-purple: #7c3aed;
-  --color-label-orange: #c2410c;
-  --color-label-pink: #be185d;
-  --color-label-gray: #3f3f46;
+  --font-sans: "Manrope", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
 }
+
+/* ── Dark theme (default) ─────────────────────────── */
+
+:root {
+  --color-bg: #0a0a0b;
+  --color-bg-raised: #111113;
+  --color-bg-overlay: #18181b;
+  --color-bg-inset: #0e0e10;
+
+  --color-border: rgba(255, 255, 255, 0.06);
+  --color-border-strong: rgba(255, 255, 255, 0.1);
+
+  --color-fg: #fafaf9;
+  --color-fg-secondary: #a1a1aa;
+  --color-fg-muted: #71717a;
+  --color-fg-dim: #3f3f46;
+
+  --color-blue: #3b82f6;
+  --color-green: #22c55e;
+  --color-red: #ef4444;
+  --color-amber: #f59e0b;
+
+  color-scheme: dark;
+}
+
+/* ── Light theme ──────────────────────────────────── */
+
+:root.light {
+  --color-bg: #fafaf9;
+  --color-bg-raised: #ffffff;
+  --color-bg-overlay: #f4f4f5;
+  --color-bg-inset: #f0f0f1;
+
+  --color-border: rgba(0, 0, 0, 0.08);
+  --color-border-strong: rgba(0, 0, 0, 0.14);
+
+  --color-fg: #09090b;
+  --color-fg-secondary: #52525b;
+  --color-fg-muted: #71717a;
+  --color-fg-dim: #d4d4d8;
+
+  --color-blue: #2563eb;
+  --color-green: #16a34a;
+  --color-red: #dc2626;
+  --color-amber: #d97706;
+
+  color-scheme: light;
+}
+
+/* ── Base ─────────────────────────────────────────── */
 
 html,
 body {
   margin: 0;
   padding: 0;
-  background: var(--color-background);
-  color: var(--color-foreground);
+  background: var(--color-bg);
+  color: var(--color-fg);
   font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* macOS drag region for the hidden title bar */
+/* ── macOS window chrome ──────────────────────────── */
+
 .drag-region {
   -webkit-app-region: drag;
 }
@@ -65,7 +92,8 @@ body {
   -webkit-app-region: no-drag;
 }
 
-/* Custom scrollbar matching the dark theme */
+/* ── Scrollbar ────────────────────────────────────── */
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -76,10 +104,24 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-dim);
+  background: var(--color-fg-dim);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-muted);
+  background: var(--color-fg-muted);
+}
+
+/* ── Focus ring ───────────────────────────────────── */
+
+*:focus-visible {
+  outline: 1.5px solid var(--color-blue);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── Selection ────────────────────────────────────── */
+
+::selection {
+  background: rgba(59, 130, 246, 0.25);
 }

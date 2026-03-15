@@ -5,27 +5,28 @@ interface LabelBadgeProps {
   highlighted?: boolean;
 }
 
-/**
- * Render a label with its GitHub color as a subtle background tint.
- */
 export function LabelBadge({ label, highlighted = false }: LabelBadgeProps) {
-  const color = label.color ? `#${label.color}` : undefined;
+  const hex = label.color ? `#${label.color}` : undefined;
 
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium transition-colors ${
-        highlighted ? "ring-1 ring-accent text-accent" : "text-muted-foreground"
-      }`}
+      className={`
+        inline-flex items-center rounded-md px-1.5 py-px
+        text-[11px] font-medium leading-5 select-none
+        transition-colors
+        ${highlighted ? "ring-1 ring-[var(--color-blue)]/40" : ""}
+      `}
       style={
-        color
+        hex
           ? {
-              backgroundColor: `${color}1a`,
-              borderColor: `${color}40`,
-              borderWidth: "1px",
-              color: highlighted ? undefined : color,
+              backgroundColor: `${hex}18`,
+              color: `${hex}cc`,
+              border: `1px solid ${hex}30`,
             }
           : {
-              backgroundColor: "var(--color-surface-overlay)",
+              backgroundColor: "var(--color-bg-overlay)",
+              color: "var(--color-fg-secondary)",
+              border: "1px solid var(--color-border)",
             }
       }
       title={label.description || label.name}
