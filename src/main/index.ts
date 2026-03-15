@@ -2,9 +2,9 @@ import { app, BrowserWindow, ipcMain, shell } from "electron";
 import { execFile } from "node:child_process";
 import { join } from "node:path";
 
-let mainWindow = null;
+let mainWindow: BrowserWindow | null = null;
 
-function createWindow() {
+function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1120,
     height: 760,
@@ -22,7 +22,7 @@ function createWindow() {
   });
 
   mainWindow.on("ready-to-show", () => {
-    mainWindow.show();
+    mainWindow?.show();
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -41,7 +41,7 @@ function createWindow() {
  * Execute the gh CLI with given arguments.
  * Returns parsed JSON when `--json` is used, raw stdout otherwise.
  */
-function execGh(args) {
+function execGh(args: string[]): Promise<unknown> {
   return new Promise((resolve, reject) => {
     execFile("gh", args, { maxBuffer: 10 * 1024 * 1024 }, (error, stdout, stderr) => {
       if (error) {
@@ -59,24 +59,29 @@ function execGh(args) {
 
 // --- IPC Handlers ---
 
-ipcMain.handle("gh:list-prs", async (_event, { repo, state = "open", limit = 100 }) => {
-  const args = [
-    "pr",
-    "list",
-    "--json",
-    "number,title,url,labels,state,author,body,createdAt,updatedAt,headRefName,isDraft",
-    "--limit",
-    String(limit),
-    "--state",
-    state,
-  ];
-  if (repo) {
-    args.push("--repo", repo);
-  }
-  return execGh(args);
-});
+ipcMain.handle(
+  "gh:list-prs",
+  async (_event, options: { repo?: string; state?: string; limit?: number }) => {
+    const { repo, state = "open", limit = 100 } = options;
+    const args = [
+      "pr",
+      "list",
+      "--json",
+      "number,title,url,labels,state,author,body,createdAt,updatedAt,headRefName,isDraft",
+      "--limit",
+      String(limit),
+      "--state",
+      state,
+    ];
+    if (repo) {
+      args.push("--repo", repo);
+    }
+    return execGh(args);
+  },
+);
 
-ipcMain.handle("gh:get-pr", async (_event, { repo, number }) => {
+ipcMain.handle("gh:get-pr", async (_event, options: { repo?: string; number: number }) => {
+  const { repo, number } = options;
   const args = [
     "pr",
     "view",
@@ -95,25 +100,20 @@ ipcMain.handle("gh:auth-status", async () => {
     await execGh(["auth", "status"]);
     return { authenticated: true };
   } catch (error) {
-    return { authenticated: false, error: error.message };
+    return { authenticated: false, error: (error as Error).message };
   }
 });
 
 ipcMain.handle("gh:current-repo", async () => {
   try {
-    const result = await execGh([
-      "repo",
-      "view",
-      "--json",
-      "nameWithOwner,description,url",
-    ]);
+    const result = await execGh(["repo", "view", "--json", "nameWithOwner,description,url"]);
     return result;
   } catch {
     return null;
   }
 });
 
-ipcMain.handle("shell:open-external", async (_event, url) => {
+ipcMain.handle("shell:open-external", async (_event, url: string) => {
   shell.openExternal(url);
 });
 

@@ -1,0 +1,85 @@
+@import "tailwindcss";
+@import "@fontsource/manrope/400.css";
+@import "@fontsource/manrope/500.css";
+@import "@fontsource/manrope/600.css";
+@import "@fontsource/manrope/700.css";
+
+/*
+ * COSS-inspired deep dark theme.
+ * Mirrors the ultra-minimal, near-black aesthetic of coss.com
+ * using CSS custom properties consumed by Tailwind utilities.
+ */
+
+@theme {
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --color-background: #09090b;
+  --color-surface: #0c0c0e;
+  --color-surface-raised: #131316;
+  --color-surface-overlay: #18181b;
+
+  --color-border: #1e1e22;
+  --color-border-subtle: #161619;
+
+  --color-foreground: #fafafa;
+  --color-muted: #71717a;
+  --color-muted-foreground: #a1a1aa;
+  --color-dim: #52525b;
+
+  --color-accent: #3b82f6;
+  --color-accent-muted: #1e3a5f;
+
+  --color-success: #22c55e;
+  --color-warning: #eab308;
+  --color-destructive: #ef4444;
+  --color-info: #3b82f6;
+
+  --color-label-blue: #1d4ed8;
+  --color-label-green: #15803d;
+  --color-label-yellow: #a16207;
+  --color-label-red: #b91c1c;
+  --color-label-purple: #7c3aed;
+  --color-label-orange: #c2410c;
+  --color-label-pink: #be185d;
+  --color-label-gray: #3f3f46;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* macOS drag region for the hidden title bar */
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* Custom scrollbar matching the dark theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-dim);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted);
+}

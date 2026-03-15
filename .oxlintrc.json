@@ -7,7 +7,14 @@
   "plugins": ["react", "unicorn", "import"],
   "rules": {
     "no-unused-vars": ["error", { "varsIgnorePattern": "^[A-Z_]" }],
-    "no-console": "off"
+    "no-console": "off",
+    "react/react-in-jsx-scope": "off",
+    "import/no-unassigned-import": "off"
+  },
+  "settings": {
+    "react": {
+      "version": "19"
+    }
   },
   "ignorePatterns": ["out", "dist", "node_modules"]
 }
