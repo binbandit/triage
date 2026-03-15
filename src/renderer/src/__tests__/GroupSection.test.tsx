@@ -78,4 +78,29 @@ describe("GroupSection", () => {
     );
     expect(screen.getByText("approved")).toBeInTheDocument();
   });
+
+  it("renders with empty PR list", () => {
+    render(<GroupSection name="empty-group" prs={[]} repo="test/repo" />);
+    expect(screen.getByText("empty-group")).toBeInTheDocument();
+    expect(screen.getByText("0")).toBeInTheDocument();
+  });
+
+  it("renders multiple PRs in order", () => {
+    const prs = [
+      makePR({ number: 1, title: "First PR" }),
+      makePR({ number: 2, title: "Second PR" }),
+      makePR({ number: 3, title: "Third PR" }),
+    ];
+    render(<GroupSection name="ordered" prs={prs} repo="test/repo" />);
+    const items = screen.getAllByText(/PR$/);
+    expect(items[0].textContent).toBe("First PR");
+    expect(items[1].textContent).toBe("Second PR");
+    expect(items[2].textContent).toBe("Third PR");
+  });
+
+  it("renders the header as a button", () => {
+    render(<GroupSection name="clickable" prs={[]} repo="test/repo" />);
+    const button = screen.getByRole("button");
+    expect(button).toBeInTheDocument();
+  });
 });

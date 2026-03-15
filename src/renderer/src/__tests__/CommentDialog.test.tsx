@@ -109,4 +109,33 @@ describe("CommentDialog", () => {
     const textarea = screen.getByPlaceholderText(/reason for closing/i);
     expect(document.activeElement).toBe(textarea);
   });
+
+  it("calls onConfirm with undefined for whitespace-only comment", async () => {
+    const onConfirm = vi.fn();
+    render(
+      <CommentDialog pr={makePR()} action="close" onConfirm={onConfirm} onCancel={() => {}} />,
+    );
+    const textarea = screen.getByPlaceholderText(/reason for closing/i);
+    await userEvent.type(textarea, "   ");
+    await userEvent.click(screen.getByText("Close"));
+    expect(onConfirm).toHaveBeenCalledWith(undefined);
+  });
+
+  it("shows PR title", () => {
+    render(
+      <CommentDialog
+        pr={makePR({ title: "My long PR title" })}
+        action="close"
+        onConfirm={() => {}}
+        onCancel={() => {}}
+      />,
+    );
+    expect(screen.getByText("My long PR title")).toBeInTheDocument();
+  });
+
+  it("has optional comment label", () => {
+    render(<CommentDialog pr={makePR()} action="close" onConfirm={() => {}} onCancel={() => {}} />);
+    expect(screen.getByText("Comment")).toBeInTheDocument();
+    expect(screen.getByText("(optional)")).toBeInTheDocument();
+  });
 });

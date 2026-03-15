@@ -68,4 +68,41 @@ describe("useSettings", () => {
     expect(result.current[0].theme).toBe("dark");
     expect(result.current[0].viewMode).toBe("list");
   });
+
+  it("removes light class when switching from light to dark", () => {
+    localStorage.setItem("triage:settings", JSON.stringify({ theme: "light" }));
+    const { result } = renderHook(() => useSettings());
+    expect(document.documentElement.classList.contains("light")).toBe(true);
+
+    act(() => {
+      result.current[1]((prev) => ({ ...prev, theme: "dark" }));
+    });
+    expect(document.documentElement.classList.contains("light")).toBe(false);
+  });
+
+  it("switches viewMode via updater", () => {
+    const { result } = renderHook(() => useSettings());
+    act(() => {
+      result.current[1]((prev) => ({ ...prev, viewMode: "kanban" }));
+    });
+    expect(result.current[0].viewMode).toBe("kanban");
+    const stored = JSON.parse(localStorage.getItem("triage:settings") || "{}");
+    expect(stored.viewMode).toBe("kanban");
+  });
+
+  it("preserves extra fields from localStorage", () => {
+    localStorage.setItem(
+      "triage:settings",
+      JSON.stringify({ repo: "x", theme: "dark", viewMode: "list", unknownField: true }),
+    );
+    const { result } = renderHook(() => useSettings());
+    // Extra fields are preserved via spread
+    expect((result.current[0] as Record<string, unknown>).unknownField).toBe(true);
+  });
+
+  it("handles localStorage key not existing at all", () => {
+    // localStorage is cleared in beforeEach, so key doesn't exist
+    const { result } = renderHook(() => useSettings());
+    expect(result.current[0]).toEqual({ repo: "", theme: "dark", viewMode: "list" });
+  });
 });

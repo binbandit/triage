@@ -94,4 +94,65 @@ describe("KanbanCard", () => {
     fireEvent.click(screen.getByText("Test PR"));
     expect(window.api.openExternal).toHaveBeenCalledWith("https://github.com/test/repo/pull/1");
   });
+
+  it("falls back to pr.url when repo is empty", () => {
+    const pr = makePR({ url: "https://github.com/fallback/repo/pull/5" });
+    render(<KanbanCard pr={pr} repo="" onDragStart={() => {}} />);
+    fireEvent.click(screen.getByText("Test PR"));
+    expect(window.api.openExternal).toHaveBeenCalledWith("https://github.com/fallback/repo/pull/5");
+  });
+
+  it("has fewer SVG icons for non-draggable PRs (no grip handle)", () => {
+    const { container: openContainer } = render(
+      <KanbanCard pr={makePR({ state: "OPEN" })} repo="test/repo" onDragStart={() => {}} />,
+    );
+    const { container: mergedContainer } = render(
+      <KanbanCard pr={makePR({ state: "MERGED" })} repo="test/repo" onDragStart={() => {}} />,
+    );
+    const openSvgs = openContainer.querySelectorAll("svg").length;
+    const mergedSvgs = mergedContainer.querySelectorAll("svg").length;
+    // Merged cards should have one fewer SVG (no GripVertical)
+    expect(mergedSvgs).toBeLessThan(openSvgs);
+  });
+
+  it("renders multiple labels", () => {
+    const pr = makePR({
+      labels: [
+        { id: "1", name: "bug", color: "d73a4a", description: "" },
+        { id: "2", name: "priority", color: "ff0000", description: "" },
+        { id: "3", name: "ui", color: "0075ca", description: "" },
+      ],
+    });
+    render(<KanbanCard pr={pr} repo="test/repo" onDragStart={() => {}} />);
+    expect(screen.getByText("bug")).toBeInTheDocument();
+    expect(screen.getByText("priority")).toBeInTheDocument();
+    expect(screen.getByText("ui")).toBeInTheDocument();
+  });
+
+  it("does not render label badges when PR has none", () => {
+    const pr = makePR({ labels: [] });
+    const { container } = render(<KanbanCard pr={pr} repo="test/repo" onDragStart={() => {}} />);
+    // LabelBadge components have a title attribute with the label name/description
+    // With no labels, there should be no spans with a title attribute
+    const labelSpans = container.querySelectorAll("span[title]");
+    expect(labelSpans).toHaveLength(0);
+  });
+
+  it("shows time ago text", () => {
+    const now = new Date();
+    const pr = makePR({ updatedAt: now.toISOString() });
+    render(<KanbanCard pr={pr} repo="test/repo" onDragStart={() => {}} />);
+    expect(screen.getByText("just now")).toBeInTheDocument();
+  });
+
+  it("has open in browser button", () => {
+    render(<KanbanCard pr={makePR()} repo="test/repo" onDragStart={() => {}} />);
+    expect(screen.getByLabelText("Open in browser")).toBeInTheDocument();
+  });
+
+  it("external link button opens PR", () => {
+    render(<KanbanCard pr={makePR()} repo="test/repo" onDragStart={() => {}} />);
+    fireEvent.click(screen.getByLabelText("Open in browser"));
+    expect(window.api.openExternal).toHaveBeenCalledWith("https://github.com/test/repo/pull/1");
+  });
 });

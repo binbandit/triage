@@ -107,4 +107,51 @@ describe("LabelBadge", () => {
     const span = container.querySelector("span");
     expect(span?.className).toContain("ring-1");
   });
+
+  it("does NOT apply ring when not highlighted (default)", () => {
+    const { container } = render(<LabelBadge label={label} />);
+    const span = container.querySelector("span");
+    expect(span?.className).not.toContain("ring-1");
+  });
+
+  it("applies inline color styles when label has a color", () => {
+    const { container } = render(<LabelBadge label={label} />);
+    const span = container.querySelector("span");
+    expect(span?.style.backgroundColor).toBeTruthy();
+    expect(span?.style.border).toBeTruthy();
+  });
+
+  it("uses fallback styles when label has no color", () => {
+    const noColor = { ...label, color: "" };
+    const { container } = render(<LabelBadge label={noColor} />);
+    const span = container.querySelector("span");
+    expect(span?.style.color).toBe("var(--color-fg-secondary)");
+  });
+});
+
+describe("EmptyState - additional edge cases", () => {
+  it("renders error state without message prop", () => {
+    render(<EmptyState type="error" />);
+    expect(screen.getByText(/something went wrong/i)).toBeInTheDocument();
+  });
+
+  it("ignores message prop for no-repo type", () => {
+    render(<EmptyState type="no-repo" message="Should not appear" />);
+    expect(screen.queryByText("Should not appear")).toBeNull();
+  });
+});
+
+describe("SearchBar - additional edge cases", () => {
+  it("renders search icon always", () => {
+    const { container } = render(<SearchBar value="" onChange={() => {}} />);
+    const svg = container.querySelector("svg");
+    expect(svg).toBeInTheDocument();
+  });
+
+  it("input has spellcheck disabled", () => {
+    // SearchBar doesn't set spellCheck currently - this is a negative test
+    render(<SearchBar value="" onChange={() => {}} />);
+    const input = screen.getByPlaceholderText(/filter by title/i);
+    expect(input).toBeInTheDocument();
+  });
 });

@@ -110,4 +110,37 @@ special:
     const config = parseTriageConfig(yaml);
     expect(config.groups[0].labels).toEqual(["vouch:trusted", "has:approval", "size:S"]);
   });
+
+  it("returns empty groups for YAML that parses to an array", () => {
+    const yaml = "- item1\n- item2\n";
+    const config = parseTriageConfig(yaml);
+    // Arrays are objects but Object.entries on them yields index keys
+    // which won't have array values, so groups should be empty
+    expect(config.groups).toEqual([]);
+  });
+
+  it("handles deeply nested values (ignores non-array values)", () => {
+    const yaml = `
+group:
+  nested:
+    - label
+`;
+    const config = parseTriageConfig(yaml);
+    // The value of "group" is an object, not an array, so it's skipped
+    expect(config.groups).toEqual([]);
+  });
+
+  it("handles YAML with only comments", () => {
+    const yaml = "# This is a comment\n# Another comment\n";
+    const config = parseTriageConfig(yaml);
+    expect(config.groups).toEqual([]);
+  });
+
+  it("handles duplicate group names in YAML gracefully", () => {
+    // The yaml library throws on duplicate keys by default,
+    // which our try/catch handles by returning empty groups
+    const yaml = "dupe:\n  - first\ndupe:\n  - second\n";
+    const config = parseTriageConfig(yaml);
+    expect(config.groups).toEqual([]);
+  });
 });

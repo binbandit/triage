@@ -108,4 +108,67 @@ Also references #30
     expect(issues).toHaveLength(1);
     expect(issues[0].number).toBe(42);
   });
+
+  it("parses 'Fix #5' (bare keyword without suffix)", () => {
+    const issues = parseLinkedIssues("Fix #5");
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ keyword: "Fix", number: 5 });
+  });
+
+  it("parses 'Close #5' (bare keyword without s/d)", () => {
+    const issues = parseLinkedIssues("Close #5");
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ keyword: "Close", number: 5 });
+  });
+
+  it("parses 'Resolve #5' (bare keyword without s/d)", () => {
+    const issues = parseLinkedIssues("Resolve #5");
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ keyword: "Resolve", number: 5 });
+  });
+
+  it("sets the raw field correctly for keyword references", () => {
+    const issues = parseLinkedIssues("Fixes #42");
+    expect(issues[0].raw).toBe("Fixes #42");
+  });
+
+  it("sets the raw field correctly for standalone references", () => {
+    const issues = parseLinkedIssues("see #99 for details");
+    expect(issues[0].raw).toBe("#99");
+  });
+
+  it("handles issue number 0", () => {
+    const issues = parseLinkedIssues("Fixes #0");
+    expect(issues).toHaveLength(1);
+    expect(issues[0].number).toBe(0);
+  });
+
+  it("handles very large issue numbers", () => {
+    const issues = parseLinkedIssues("Fixes #999999");
+    expect(issues).toHaveLength(1);
+    expect(issues[0].number).toBe(999999);
+  });
+
+  it("handles body with leading and trailing whitespace", () => {
+    const issues = parseLinkedIssues("  \n  Fixes #10  \n  ");
+    expect(issues).toHaveLength(1);
+    expect(issues[0].number).toBe(10);
+  });
+
+  it("handles standalone references preceded by parenthesis", () => {
+    const issues = parseLinkedIssues("(#55)");
+    expect(issues).toHaveLength(1);
+    expect(issues[0].number).toBe(55);
+  });
+
+  it("handles standalone references preceded by comma", () => {
+    const issues = parseLinkedIssues("related to #10, #20");
+    expect(issues).toHaveLength(2);
+  });
+
+  it("handles cross-repo with dashes and dots", () => {
+    const issues = parseLinkedIssues("Fixes my-org/repo.name#77");
+    expect(issues).toHaveLength(1);
+    expect(issues[0].number).toBe(77);
+  });
 });

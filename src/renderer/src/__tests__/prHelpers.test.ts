@@ -209,4 +209,73 @@ describe("groupPRs", () => {
     expect(result.grouped[1].prs).toEqual([]);
     expect(result.ungrouped).toEqual([]);
   });
+
+  it("preserves group structure even when no PRs match", () => {
+    const noMatchPRs = [makePR({ number: 99, labels: [] })];
+    const result = groupPRs(noMatchPRs, groups);
+    expect(result.grouped).toHaveLength(2);
+    expect(result.grouped[0].group.name).toBe("ready");
+    expect(result.grouped[0].prs).toEqual([]);
+    expect(result.ungrouped).toHaveLength(1);
+  });
+});
+
+describe("filterPRs - additional edge cases", () => {
+  it("filters by bare number without # matches title content", () => {
+    const prs = [
+      makePR({ number: 42, title: "Normal PR" }),
+      makePR({ number: 100, title: "Contains 42 in title" }),
+    ];
+    // Query "42" without # matches title containing "42" and also #42 contains "42"
+    const result = filterPRs(prs, "42");
+    // #42 contains the substring "42" (as "#42".includes("42") is true)
+    expect(result.map((p) => p.number)).toEqual([42, 100]);
+  });
+
+  it("matches PR where author name appears in title too", () => {
+    const prs = [makePR({ number: 1, title: "alice fixes auth", author: { login: "alice" } })];
+    const result = filterPRs(prs, "alice");
+    expect(result).toHaveLength(1);
+  });
+
+  it("handles PR with empty author login", () => {
+    const prs = [makePR({ number: 1, author: { login: "" } })];
+    const result = filterPRs(prs, "nonexistent");
+    expect(result).toEqual([]);
+  });
+
+  it("filters by partial label match", () => {
+    const prs = [
+      makePR({
+        number: 1,
+        labels: [{ id: "1", name: "priority:high", color: "", description: "" }],
+      }),
+    ];
+    const result = filterPRs(prs, "priority");
+    expect(result).toHaveLength(1);
+  });
+});
+
+describe("prMatchesGroup - additional edge cases", () => {
+  it("handles group labels with colons", () => {
+    const pr = makePR({
+      labels: [{ id: "1", name: "size:S", color: "", description: "" }],
+    });
+    const group: LabelGroup = { name: "small", labels: ["size:S"] };
+    expect(prMatchesGroup(pr, group)).toBe(true);
+  });
+
+  it("handles group labels with slashes", () => {
+    const pr = makePR({
+      labels: [{ id: "1", name: "bug/critical", color: "", description: "" }],
+    });
+    const group: LabelGroup = { name: "critical", labels: ["bug/critical"] };
+    expect(prMatchesGroup(pr, group)).toBe(true);
+  });
+
+  it("returns false for no labels on PR when group requires labels", () => {
+    const pr = makePR({ labels: [] });
+    const group: LabelGroup = { name: "test", labels: ["required"] };
+    expect(prMatchesGroup(pr, group)).toBe(false);
+  });
 });
