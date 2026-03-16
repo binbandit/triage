@@ -559,6 +559,7 @@ ipcMain.handle("gh:search-users", async (_event, options: { query: string }) => 
 import {
   getNodes,
   updateNodePosition,
+  updateNodeZone,
   deleteNode,
   getZones,
   upsertZone,
@@ -569,6 +570,7 @@ import {
   getViewport,
   saveViewport,
   batchUpsertNodes,
+  flushAll,
   type CanvasNode,
   type CanvasViewport,
 } from "./canvasDb";
@@ -578,6 +580,13 @@ ipcMain.handle(
   "canvas:update-node-pos",
   async (_event, opts: { repo: string; id: string; x: number; y: number }) => {
     await updateNodePosition(opts.repo, opts.id, opts.x, opts.y);
+    return { success: true };
+  },
+);
+ipcMain.handle(
+  "canvas:update-node-zone",
+  async (_event, opts: { repo: string; id: string; zoneId: string | null }) => {
+    await updateNodeZone(opts.repo, opts.id, opts.zoneId);
     return { success: true };
   },
 );
@@ -650,4 +659,8 @@ app.whenReady().then(() => {
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
+});
+
+app.on("before-quit", async () => {
+  await flushAll();
 });

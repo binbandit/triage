@@ -77,15 +77,17 @@ export function CanvasCard({ node, data, zoom, highlighted, repo }: CanvasCardPr
       };
 
       const handleMouseUp = () => {
+        const wasDrag = dragRef.current?.moved ?? false;
         dragRef.current = null;
         document.removeEventListener("mousemove", handleMouseMove);
         document.removeEventListener("mouseup", handleMouseUp);
+        if (!wasDrag) handleOpen();
       };
 
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
     },
-    [node.id, node.x, node.y, zoom, moveNode, selectNode],
+    [node.id, node.x, node.y, zoom, moveNode, selectNode, handleOpen],
   );
 
   const handleDoubleClick = useCallback(

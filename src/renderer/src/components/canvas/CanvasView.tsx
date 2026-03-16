@@ -348,6 +348,37 @@ export function CanvasView({ repo }: CanvasViewProps) {
     null,
   );
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
+
+  // Track container size for minimap
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) {
+        setContainerSize({ width: entry.contentRect.width, height: entry.contentRect.height });
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Clear canvas state when repo changes
+  const prevRepoRef = useRef(repo);
+  useEffect(() => {
+    if (prevRepoRef.current !== repo) {
+      prevRepoRef.current = repo;
+      useCanvasStore.setState({
+        nodes: [],
+        zones: [],
+        arrows: [],
+        loading: false,
+        selectedNodeId: null,
+        searchQuery: "",
+      });
+    }
+  }, [repo]);
 
   // Debounced viewport save
   const debouncedSaveViewport = useCallback(
@@ -477,28 +508,29 @@ export function CanvasView({ repo }: CanvasViewProps) {
     [viewport, setViewport, debouncedSaveViewport, selectNode, repo],
   );
 
-  // Zoom
-  const handleWheel = useCallback(
-    (e: React.WheelEvent) => {
-      e.preventDefault();
-      const delta = e.deltaY > 0 ? 0.92 : 1.08;
-      const newZoom = Math.max(0.1, Math.min(3, viewport.zoom * delta));
+  // Zoom via native wheel listener (non-passive for preventDefault)
+  const viewportRef = useRef(viewport);
+  viewportRef.current = viewport;
 
-      // Zoom toward cursor position
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (rect) {
-        const cx = e.clientX - rect.left;
-        const cy = e.clientY - rect.top;
-        const newPanX = cx - ((cx - viewport.panX) / viewport.zoom) * newZoom;
-        const newPanY = cy - ((cy - viewport.panY) / viewport.zoom) * newZoom;
-        setViewport({ panX: newPanX, panY: newPanY, zoom: newZoom });
-      } else {
-        setViewport({ ...viewport, zoom: newZoom });
-      }
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      const vp = viewportRef.current;
+      const delta = e.deltaY > 0 ? 0.92 : 1.08;
+      const newZoom = Math.max(0.1, Math.min(3, vp.zoom * delta));
+      const rect = el.getBoundingClientRect();
+      const cx = e.clientX - rect.left;
+      const cy = e.clientY - rect.top;
+      const newPanX = cx - ((cx - vp.panX) / vp.zoom) * newZoom;
+      const newPanY = cy - ((cy - vp.panY) / vp.zoom) * newZoom;
+      setViewport({ panX: newPanX, panY: newPanY, zoom: newZoom });
       debouncedSaveViewport(repo);
-    },
-    [viewport, setViewport, debouncedSaveViewport, repo],
-  );
+    };
+    el.addEventListener("wheel", handler, { passive: false });
+    return () => el.removeEventListener("wheel", handler);
+  }, [setViewport, debouncedSaveViewport, repo]);
 
   const zoomTo = (z: number) => {
     setViewport({ ...viewport, zoom: z });
@@ -530,8 +562,8 @@ export function CanvasView({ repo }: CanvasViewProps) {
     debouncedSaveViewport(repo);
   };
 
-  const containerWidth = containerRef.current?.clientWidth ?? 800;
-  const containerHeight = containerRef.current?.clientHeight ?? 600;
+  const containerWidth = containerSize.width;
+  const containerHeight = containerSize.height;
 
   if (loading) {
     return (
@@ -635,7 +667,6 @@ export function CanvasView({ repo }: CanvasViewProps) {
       <div
         className="absolute inset-0 cursor-grab active:cursor-grabbing"
         onMouseDown={handleCanvasMouseDown}
-        onWheel={handleWheel}
         role="application"
         aria-label="Canvas"
         tabIndex={-1}

@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir, rename } from "node:fs/promises";
 import { join } from "node:path";
 import { homedir } from "node:os";
 
@@ -34,32 +34,80 @@ export interface CanvasViewport {
 }
 
 interface CanvasData {
+  version: number;
   nodes: CanvasNode[];
   zones: CanvasZone[];
   viewport: CanvasViewport;
 }
 
+const CURRENT_VERSION = 1;
+
 function repoFileName(repo: string): string {
-  return repo.replace("/", "__") + ".json";
+  return repo.replace(/\//g, "__") + ".json";
 }
 
 async function ensureDir(): Promise<void> {
   await mkdir(DB_DIR, { recursive: true });
 }
 
+/**
+ * In-memory cache per repo to avoid reading from disk on every operation.
+ * The cache is authoritative during the app session.
+ */
+const dataCache = new Map<string, CanvasData>();
+
 async function readRepoData(repo: string): Promise<CanvasData> {
+  const cached = dataCache.get(repo);
+  if (cached) return cached;
+
   try {
     const raw = await readFile(join(DB_DIR, repoFileName(repo)), "utf-8");
-    return JSON.parse(raw) as CanvasData;
+    const data = JSON.parse(raw) as CanvasData;
+    data.version = data.version ?? CURRENT_VERSION;
+    dataCache.set(repo, data);
+    return data;
   } catch {
-    return { nodes: [], zones: [], viewport: { pan_x: 0, pan_y: 0, zoom: 1 } };
+    const fresh: CanvasData = {
+      version: CURRENT_VERSION,
+      nodes: [],
+      zones: [],
+      viewport: { pan_x: 0, pan_y: 0, zoom: 1 },
+    };
+    dataCache.set(repo, fresh);
+    return fresh;
   }
 }
 
-async function writeRepoData(repo: string, data: CanvasData): Promise<void> {
-  await ensureDir();
-  await writeFile(join(DB_DIR, repoFileName(repo)), JSON.stringify(data, null, 2), "utf-8");
+/**
+ * Debounced write: coalesces rapid writes into a single disk flush.
+ * Uses atomic write (write to .tmp then rename) to prevent corruption.
+ */
+const pendingWrites = new Map<string, ReturnType<typeof setTimeout>>();
+
+function scheduleWrite(repo: string): void {
+  const existing = pendingWrites.get(repo);
+  if (existing) clearTimeout(existing);
+
+  pendingWrites.set(
+    repo,
+    setTimeout(async () => {
+      pendingWrites.delete(repo);
+      const data = dataCache.get(repo);
+      if (!data) return;
+      try {
+        await ensureDir();
+        const filePath = join(DB_DIR, repoFileName(repo));
+        const tmpPath = filePath + ".tmp";
+        await writeFile(tmpPath, JSON.stringify(data, null, 2), "utf-8");
+        await rename(tmpPath, filePath);
+      } catch {
+        // Silent write failure - in-memory cache is still authoritative
+      }
+    }, 500),
+  );
 }
+
+// ── Node operations ──────────────────────────────────
 
 export async function getNodes(repo: string): Promise<CanvasNode[]> {
   return (await readRepoData(repo)).nodes;
@@ -76,7 +124,20 @@ export async function updateNodePosition(
   if (node) {
     node.x = x;
     node.y = y;
-    await writeRepoData(repo, data);
+    scheduleWrite(repo);
+  }
+}
+
+export async function updateNodeZone(
+  repo: string,
+  id: string,
+  zoneId: string | null,
+): Promise<void> {
+  const data = await readRepoData(repo);
+  const node = data.nodes.find((n) => n.id === id);
+  if (node) {
+    node.zone_id = zoneId;
+    scheduleWrite(repo);
   }
 }
 
@@ -87,14 +148,16 @@ export async function batchUpsertNodes(repo: string, nodes: CanvasNode[]): Promi
     if (idx >= 0) data.nodes[idx] = node;
     else data.nodes.push(node);
   }
-  await writeRepoData(repo, data);
+  scheduleWrite(repo);
 }
 
 export async function deleteNode(repo: string, id: string): Promise<void> {
   const data = await readRepoData(repo);
   data.nodes = data.nodes.filter((n) => n.id !== id);
-  await writeRepoData(repo, data);
+  scheduleWrite(repo);
 }
+
+// ── Zone operations ──────────────────────────────────
 
 export async function getZones(repo: string): Promise<CanvasZone[]> {
   return (await readRepoData(repo)).zones;
@@ -105,7 +168,7 @@ export async function upsertZone(repo: string, zone: CanvasZone): Promise<void> 
   const idx = data.zones.findIndex((z) => z.id === zone.id);
   if (idx >= 0) data.zones[idx] = zone;
   else data.zones.push(zone);
-  await writeRepoData(repo, data);
+  scheduleWrite(repo);
 }
 
 export async function updateZonePosition(
@@ -119,7 +182,7 @@ export async function updateZonePosition(
   if (zone) {
     zone.x = x;
     zone.y = y;
-    await writeRepoData(repo, data);
+    scheduleWrite(repo);
   }
 }
 
@@ -134,7 +197,7 @@ export async function updateZoneSize(
   if (zone) {
     zone.width = w;
     zone.height = h;
-    await writeRepoData(repo, data);
+    scheduleWrite(repo);
   }
 }
 
@@ -143,7 +206,7 @@ export async function updateZoneLabel(repo: string, id: string, label: string): 
   const zone = data.zones.find((z) => z.id === id);
   if (zone) {
     zone.label = label;
-    await writeRepoData(repo, data);
+    scheduleWrite(repo);
   }
 }
 
@@ -151,8 +214,10 @@ export async function deleteZone(repo: string, id: string): Promise<void> {
   const data = await readRepoData(repo);
   data.zones = data.zones.filter((z) => z.id !== id);
   data.nodes = data.nodes.map((n) => (n.zone_id === id ? { ...n, zone_id: null } : n));
-  await writeRepoData(repo, data);
+  scheduleWrite(repo);
 }
+
+// ── Viewport operations ──────────────────────────────
 
 export async function getViewport(repo: string): Promise<CanvasViewport> {
   return (await readRepoData(repo)).viewport;
@@ -161,5 +226,24 @@ export async function getViewport(repo: string): Promise<CanvasViewport> {
 export async function saveViewport(repo: string, viewport: CanvasViewport): Promise<void> {
   const data = await readRepoData(repo);
   data.viewport = viewport;
-  await writeRepoData(repo, data);
+  scheduleWrite(repo);
+}
+
+// ── Cleanup ──────────────────────────────────────────
+
+/** Flush all pending writes immediately (call before app quit) */
+export async function flushAll(): Promise<void> {
+  for (const [repo, timer] of pendingWrites) {
+    clearTimeout(timer);
+    pendingWrites.delete(repo);
+    const data = dataCache.get(repo);
+    if (!data) continue;
+    try {
+      await ensureDir();
+      const filePath = join(DB_DIR, repoFileName(repo));
+      await writeFile(filePath, JSON.stringify(data, null, 2), "utf-8");
+    } catch {
+      // Best effort
+    }
+  }
 }

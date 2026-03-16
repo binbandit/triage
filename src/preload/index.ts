@@ -109,6 +109,8 @@ contextBridge.exposeInMainWorld("api", {
   canvasGetNodes: (repo: string) => ipcRenderer.invoke("canvas:get-nodes", repo),
   canvasUpdateNodePos: (opts: { repo: string; id: string; x: number; y: number }) =>
     ipcRenderer.invoke("canvas:update-node-pos", opts),
+  canvasUpdateNodeZone: (opts: { repo: string; id: string; zoneId: string | null }) =>
+    ipcRenderer.invoke("canvas:update-node-zone", opts),
   canvasDeleteNode: (opts: { repo: string; id: string }) =>
     ipcRenderer.invoke("canvas:delete-node", opts),
   canvasBatchUpsertNodes: (opts: { repo: string; nodes: unknown[] }) =>

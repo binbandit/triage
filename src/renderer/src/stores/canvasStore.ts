@@ -2,6 +2,22 @@ import { create } from "zustand";
 import type { PullRequest, Issue } from "../types";
 import { parseLinkedIssues } from "../lib/parseIssues";
 
+/**
+ * Debounced IPC call helper. Coalesces rapid calls per key into a single IPC.
+ */
+const debouncedCalls = new Map<string, ReturnType<typeof setTimeout>>();
+function debouncedIPC(key: string, fn: () => void, delay = 100): void {
+  const existing = debouncedCalls.get(key);
+  if (existing) clearTimeout(existing);
+  debouncedCalls.set(
+    key,
+    setTimeout(() => {
+      debouncedCalls.delete(key);
+      fn();
+    }, delay),
+  );
+}
+
 export interface CanvasNode {
   id: string;
   repo: string;
@@ -193,7 +209,32 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
     set((s) => ({
       nodes: s.nodes.map((n) => (n.id === id ? { ...n, x, y } : n)),
     }));
-    if (node) window.api.canvasUpdateNodePos({ repo: node.repo, id, x, y });
+    if (node) {
+      debouncedIPC(`node-pos-${id}`, () => {
+        window.api.canvasUpdateNodePos({
+          repo: node.repo,
+          id,
+          x: get().nodes.find((n) => n.id === id)?.x ?? x,
+          y: get().nodes.find((n) => n.id === id)?.y ?? y,
+        });
+
+        // Check zone containment after move settles
+        const currentNode = get().nodes.find((n) => n.id === id);
+        if (!currentNode) return;
+        const cx = currentNode.x + currentNode.width / 2;
+        const cy = currentNode.y + 50;
+        const containingZone = get().zones.find(
+          (z) => cx >= z.x && cx <= z.x + z.width && cy >= z.y && cy <= z.y + z.height,
+        );
+        const newZoneId = containingZone?.id ?? null;
+        if (newZoneId !== currentNode.zone_id) {
+          set((s) => ({
+            nodes: s.nodes.map((n) => (n.id === id ? { ...n, zone_id: newZoneId } : n)),
+          }));
+          window.api.canvasUpdateNodeZone({ repo: currentNode.repo, id, zoneId: newZoneId });
+        }
+      });
+    }
   },
 
   moveZone: (id, x, y) => {
@@ -201,7 +242,13 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
     set((s) => ({
       zones: s.zones.map((z) => (z.id === id ? { ...z, x, y } : z)),
     }));
-    if (zone) window.api.canvasUpdateZonePos({ repo: zone.repo, id, x, y });
+    if (zone) {
+      debouncedIPC(`zone-pos-${id}`, () => {
+        const current = get().zones.find((z) => z.id === id);
+        if (current)
+          window.api.canvasUpdateZonePos({ repo: current.repo, id, x: current.x, y: current.y });
+      });
+    }
   },
 
   resizeZone: (id, width, height) => {
@@ -209,7 +256,18 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
     set((s) => ({
       zones: s.zones.map((z) => (z.id === id ? { ...z, width, height } : z)),
     }));
-    if (zone) window.api.canvasUpdateZoneSize({ repo: zone.repo, id, width, height });
+    if (zone) {
+      debouncedIPC(`zone-size-${id}`, () => {
+        const current = get().zones.find((z) => z.id === id);
+        if (current)
+          window.api.canvasUpdateZoneSize({
+            repo: current.repo,
+            id,
+            width: current.width,
+            height: current.height,
+          });
+      });
+    }
   },
 
   addZone: (repo) => {
