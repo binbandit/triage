@@ -57,7 +57,7 @@ function execGh(args: string[]): Promise<unknown> {
   });
 }
 
-// --- IPC Handlers ---
+// ── IPC: PR Listing ──────────────────────────────────
 
 ipcMain.handle(
   "gh:list-prs",
@@ -73,26 +73,71 @@ ipcMain.handle(
       "--state",
       state,
     ];
-    if (repo) {
-      args.push("--repo", repo);
-    }
+    if (repo) args.push("--repo", repo);
     return execGh(args);
   },
 );
 
+// ── IPC: PR Detail ───────────────────────────────────
+
+const PR_DETAIL_FIELDS = [
+  "number",
+  "title",
+  "url",
+  "labels",
+  "state",
+  "author",
+  "body",
+  "createdAt",
+  "updatedAt",
+  "headRefName",
+  "baseRefName",
+  "isDraft",
+  "closedAt",
+  "mergedAt",
+  "mergedBy",
+  "additions",
+  "deletions",
+  "changedFiles",
+  "comments",
+  "commits",
+  "files",
+  "reviews",
+  "latestReviews",
+  "reviewRequests",
+  "reviewDecision",
+  "mergeable",
+  "mergeStateStatus",
+  "statusCheckRollup",
+  "assignees",
+].join(",");
+
 ipcMain.handle("gh:get-pr", async (_event, options: { repo?: string; number: number }) => {
   const { repo, number } = options;
-  const args = [
-    "pr",
-    "view",
-    String(number),
-    "--json",
-    "number,title,url,labels,state,author,body,createdAt,updatedAt,headRefName,isDraft,closedAt,mergedAt",
-  ];
-  if (repo) {
-    args.push("--repo", repo);
-  }
+  const args = ["pr", "view", String(number), "--json", PR_DETAIL_FIELDS];
+  if (repo) args.push("--repo", repo);
   return execGh(args);
+});
+
+// ── IPC: PR Diff ─────────────────────────────────────
+
+ipcMain.handle("gh:pr-diff", async (_event, options: { repo: string; number: number }) => {
+  const { repo, number } = options;
+  const args = ["pr", "diff", String(number), "--repo", repo, "--patch"];
+  return execGh(args);
+});
+
+// ── IPC: Config ──────────────────────────────────────
+
+ipcMain.handle("gh:fetch-config", async (_event, options: { repo: string; path?: string }) => {
+  const { repo, path = ".triage.yml" } = options;
+  try {
+    const result = await execGh(["api", `repos/${repo}/contents/${path}`, "--jq", ".content"]);
+    const decoded = Buffer.from(String(result), "base64").toString("utf-8");
+    return { content: decoded, found: true };
+  } catch {
+    return { content: null, found: false };
+  }
 });
 
 ipcMain.handle("gh:auth-status", async () => {
@@ -106,24 +151,13 @@ ipcMain.handle("gh:auth-status", async () => {
 
 ipcMain.handle("gh:current-repo", async () => {
   try {
-    const result = await execGh(["repo", "view", "--json", "nameWithOwner,description,url"]);
-    return result;
+    return await execGh(["repo", "view", "--json", "nameWithOwner,description,url"]);
   } catch {
     return null;
   }
 });
 
-ipcMain.handle("gh:fetch-config", async (_event, options: { repo: string; path?: string }) => {
-  const { repo, path = ".triage.yml" } = options;
-  try {
-    const result = await execGh(["api", `repos/${repo}/contents/${path}`, "--jq", ".content"]);
-    // GitHub returns base64-encoded content
-    const decoded = Buffer.from(String(result), "base64").toString("utf-8");
-    return { content: decoded, found: true };
-  } catch {
-    return { content: null, found: false };
-  }
-});
+// ── IPC: PR Actions ──────────────────────────────────
 
 ipcMain.handle(
   "gh:close-pr",
@@ -158,24 +192,130 @@ ipcMain.handle(
   },
 );
 
+// ── IPC: PR Editing ──────────────────────────────────
+
+ipcMain.handle(
+  "gh:edit-pr",
+  async (
+    _event,
+    options: {
+      repo: string;
+      number: number;
+      title?: string;
+      body?: string;
+      addLabels?: string[];
+      removeLabels?: string[];
+    },
+  ) => {
+    const { repo, number, title, body, addLabels, removeLabels } = options;
+    const args = ["pr", "edit", String(number), "--repo", repo];
+    if (title) args.push("--title", title);
+    if (body) args.push("--body", body);
+    if (addLabels && addLabels.length > 0) args.push("--add-label", addLabels.join(","));
+    if (removeLabels && removeLabels.length > 0)
+      args.push("--remove-label", removeLabels.join(","));
+    await execGh(args);
+    return { success: true };
+  },
+);
+
+// ── IPC: Reviews ─────────────────────────────────────
+
+ipcMain.handle(
+  "gh:submit-review",
+  async (
+    _event,
+    options: {
+      repo: string;
+      number: number;
+      event: "APPROVE" | "REQUEST_CHANGES" | "COMMENT";
+      body?: string;
+    },
+  ) => {
+    const { repo, number, event, body } = options;
+    const args = ["pr", "review", String(number), "--repo", repo];
+    if (event === "APPROVE") args.push("--approve");
+    else if (event === "REQUEST_CHANGES") args.push("--request-changes");
+    else args.push("--comment");
+    if (body) args.push("--body", body);
+    await execGh(args);
+    return { success: true };
+  },
+);
+
+// ── IPC: Review Comments (line-level) ────────────────
+
+ipcMain.handle(
+  "gh:review-comment",
+  async (
+    _event,
+    options: {
+      repo: string;
+      number: number;
+      body: string;
+      path: string;
+      line: number;
+      startLine?: number;
+      side?: string;
+    },
+  ) => {
+    const { repo, number, body, path, line, startLine, side } = options;
+    // Use the REST API for review comments with line info
+    const apiPath = `repos/${repo}/pulls/${number}/comments`;
+    const payload: Record<string, unknown> = {
+      body,
+      path,
+      line,
+      commit_id: "HEAD",
+    };
+    if (startLine && startLine !== line) payload.start_line = startLine;
+    if (side) payload.side = side;
+
+    await execGh(["api", apiPath, "--method", "POST", "--input", "-", "--silent"]);
+    return { success: true };
+  },
+);
+
+// ── IPC: Repo Labels ─────────────────────────────────
+
+ipcMain.handle("gh:repo-labels", async (_event, options: { repo: string }) => {
+  const { repo } = options;
+  return execGh(["api", `repos/${repo}/labels`, "--paginate", "--jq", ".[].name"]);
+});
+
+// ── IPC: Search Users (@mention) ─────────────────────
+
+ipcMain.handle("gh:search-users", async (_event, options: { query: string }) => {
+  const { query } = options;
+  if (!query || query.length < 2) return [];
+  try {
+    const result = await execGh([
+      "api",
+      `search/users?q=${encodeURIComponent(query)}&per_page=8`,
+      "--jq",
+      ".items | map({login: .login, avatar_url: .avatar_url})",
+    ]);
+    return result;
+  } catch {
+    return [];
+  }
+});
+
+// ── IPC: Shell ───────────────────────────────────────
+
 ipcMain.handle("shell:open-external", async (_event, url: string) => {
   shell.openExternal(url);
 });
 
-// --- App Lifecycle ---
+// ── App Lifecycle ────────────────────────────────────
 
 app.whenReady().then(() => {
   createWindow();
-
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
+  if (process.platform !== "darwin") app.quit();
 });
