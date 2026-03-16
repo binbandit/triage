@@ -8,11 +8,10 @@ import {
   Loader2,
   AlertCircle,
   X,
-  Plus,
-  Tag,
 } from "lucide-react";
 import { useIssueDetailStore } from "../../stores/issueDetailStore";
 import { LabelBadge } from "../LabelBadge";
+import { LabelPicker } from "./LabelPicker";
 import { MarkdownBody } from "./MarkdownBody";
 import { MentionInput } from "./MentionInput";
 
@@ -54,8 +53,6 @@ export function IssueDetailView({ repo }: IssueDetailViewProps) {
   const [bodySaving, setBodySaving] = useState(false);
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [labelInput, setLabelInput] = useState("");
-  const [showLabelInput, setShowLabelInput] = useState(false);
 
   if (loading) {
     return (
@@ -122,26 +119,6 @@ export function IssueDetailView({ repo }: IssueDetailViewProps) {
     const success = await addComment(repo, comment.trim());
     if (success) setComment("");
     setSubmitting(false);
-  };
-
-  const handleAddLabel = async () => {
-    const label = labelInput.trim();
-    if (label) {
-      await addLabels(repo, [label]);
-      setLabelInput("");
-      setShowLabelInput(false);
-    }
-  };
-
-  const handleLabelKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleAddLabel();
-    }
-    if (e.key === "Escape") {
-      setShowLabelInput(false);
-      setLabelInput("");
-    }
   };
 
   return (
@@ -236,40 +213,14 @@ export function IssueDetailView({ repo }: IssueDetailViewProps) {
           {/* Labels */}
           <div className="flex flex-wrap items-center gap-1">
             {detail.labels.map((label) => (
-              <span key={label.name} className="group/label inline-flex items-center gap-0.5">
-                <LabelBadge label={label} />
-                <button
-                  type="button"
-                  onClick={() => removeLabels(repo, [label.name])}
-                  className="opacity-0 group-hover/label:opacity-100 p-0.5 cursor-pointer text-[var(--color-fg-dim)] hover:text-[var(--color-red)] transition-all"
-                  aria-label={`Remove ${label.name}`}
-                >
-                  <X className="size-2.5" />
-                </button>
-              </span>
+              <LabelBadge key={label.name} label={label} />
             ))}
-            {showLabelInput ? (
-              <input
-                type="text"
-                value={labelInput}
-                onChange={(e) => setLabelInput(e.target.value)}
-                onKeyDown={handleLabelKeyDown}
-                onBlur={() => {
-                  if (!labelInput.trim()) setShowLabelInput(false);
-                }}
-                placeholder="label name"
-                className="rounded border border-[var(--color-blue)]/40 bg-[var(--color-bg-inset)] px-1.5 py-0.5 text-[11px] text-[var(--color-fg)] outline-none w-24"
-              />
-            ) : (
-              <button
-                type="button"
-                onClick={() => setShowLabelInput(true)}
-                className="inline-flex items-center gap-0.5 rounded-md border border-dashed border-[var(--color-border)] px-1.5 py-0.5 text-[10px] text-[var(--color-fg-dim)] cursor-pointer hover:border-[var(--color-border-strong)] hover:text-[var(--color-fg-muted)] transition-colors"
-              >
-                <Plus className="size-2.5" />
-                <Tag className="size-2.5" />
-              </button>
-            )}
+            <LabelPicker
+              currentLabels={detail.labels}
+              repo={repo}
+              onAdd={(label) => addLabels(repo, [label])}
+              onRemove={(label) => removeLabels(repo, [label])}
+            />
           </div>
         </div>
       </div>

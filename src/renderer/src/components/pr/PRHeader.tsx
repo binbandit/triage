@@ -10,13 +10,11 @@ import {
   AlertTriangle,
   Users,
   Pencil,
-  X as XIcon,
-  Tag,
-  Plus,
   Loader2,
 } from "lucide-react";
 import type { PullRequestDetail } from "../../types";
 import { LabelBadge } from "../LabelBadge";
+import { LabelPicker } from "./LabelPicker";
 import { countApprovals, hasChangesRequested, countReviewers } from "../../lib/prHelpers";
 
 interface PRHeaderProps {
@@ -74,9 +72,6 @@ export function PRHeader({
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(pr.title);
   const [titleSaving, setTitleSaving] = useState(false);
-  const [labelInput, setLabelInput] = useState("");
-  const [showLabelInput, setShowLabelInput] = useState(false);
-
   const approvals = countApprovals(pr);
   const changesReq = hasChangesRequested(pr);
   const reviewers = countReviewers(pr);
@@ -98,26 +93,6 @@ export function PRHeader({
     if (e.key === "Escape") {
       setTitleValue(pr.title);
       setEditingTitle(false);
-    }
-  };
-
-  const handleAddLabel = async () => {
-    const label = labelInput.trim();
-    if (label) {
-      await onAddLabel(label);
-      setLabelInput("");
-      setShowLabelInput(false);
-    }
-  };
-
-  const handleLabelKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleAddLabel();
-    }
-    if (e.key === "Escape") {
-      setShowLabelInput(false);
-      setLabelInput("");
     }
   };
 
@@ -237,40 +212,14 @@ export function PRHeader({
         {/* Labels */}
         <div className="flex flex-wrap items-center gap-1">
           {pr.labels.map((label) => (
-            <span key={label.name} className="group/label inline-flex items-center gap-0.5">
-              <LabelBadge label={label} />
-              <button
-                type="button"
-                onClick={() => onRemoveLabel(label.name)}
-                className="opacity-0 group-hover/label:opacity-100 p-0.5 cursor-pointer text-[var(--color-fg-dim)] hover:text-[var(--color-red)] transition-all"
-                aria-label={`Remove ${label.name}`}
-              >
-                <XIcon className="size-2.5" />
-              </button>
-            </span>
+            <LabelBadge key={label.name} label={label} />
           ))}
-          {showLabelInput ? (
-            <input
-              type="text"
-              value={labelInput}
-              onChange={(e) => setLabelInput(e.target.value)}
-              onKeyDown={handleLabelKeyDown}
-              onBlur={() => {
-                if (!labelInput.trim()) setShowLabelInput(false);
-              }}
-              placeholder="label name"
-              className="rounded border border-[var(--color-blue)]/40 bg-[var(--color-bg-inset)] px-1.5 py-0.5 text-[11px] text-[var(--color-fg)] outline-none w-24"
-            />
-          ) : (
-            <button
-              type="button"
-              onClick={() => setShowLabelInput(true)}
-              className="inline-flex items-center gap-0.5 rounded-md border border-dashed border-[var(--color-border)] px-1.5 py-0.5 text-[10px] text-[var(--color-fg-dim)] cursor-pointer hover:border-[var(--color-border-strong)] hover:text-[var(--color-fg-muted)] transition-colors"
-            >
-              <Plus className="size-2.5" />
-              <Tag className="size-2.5" />
-            </button>
-          )}
+          <LabelPicker
+            currentLabels={pr.labels}
+            repo={repo}
+            onAdd={(label) => onAddLabel(label)}
+            onRemove={(label) => onRemoveLabel(label)}
+          />
         </div>
       </div>
     </div>
