@@ -25,6 +25,7 @@ import { useIssueDetailStore } from "../stores/issueDetailStore";
 import { useConfigStore } from "../stores/configStore";
 import { useBulkActionsStore } from "../stores/bulkActionsStore";
 import { useSavedViewsStore } from "../stores/savedViewsStore";
+import { cn } from "../lib/cn";
 
 interface Command {
   id: string;
@@ -392,16 +393,23 @@ export function CommandPalette({ open, onClose, onOpenSettings }: CommandPalette
   let flatIndex = 0;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh] bg-black/50 backdrop-blur-sm">
-      <div className="absolute inset-0" onClick={onClose} aria-hidden="true" />
+    <div className="fixed inset-0 z-[100] flex flex-col items-center px-4 py-[10vh]">
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/32 backdrop-blur-sm"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      {/* Popup */}
       <div
         role="dialog"
         aria-label="Command palette"
-        className="relative w-full max-w-lg rounded-xl border border-[var(--color-border-strong)] bg-[var(--color-bg-raised)] shadow-2xl overflow-hidden"
+        className="relative flex max-h-[420px] min-h-0 w-full max-w-xl flex-col rounded-2xl border border-[var(--color-border-strong)] bg-[var(--color-bg-raised)] shadow-lg overflow-hidden"
         onKeyDown={handleKeyDown}
       >
-        {/* Search input */}
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--color-border)]">
+        {/* Input */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--color-border)]">
           <Search className="size-4 text-[var(--color-fg-dim)] shrink-0" />
           <input
             ref={inputRef}
@@ -411,22 +419,20 @@ export function CommandPalette({ open, onClose, onOpenSettings }: CommandPalette
             placeholder="Type a command..."
             className="flex-1 bg-transparent text-[14px] text-[var(--color-fg)] placeholder:text-[var(--color-fg-dim)] outline-none"
           />
-          <kbd className="text-[10px] text-[var(--color-fg-dim)] bg-[var(--color-bg-overlay)] px-1.5 py-0.5 rounded border border-[var(--color-border)]">
-            Esc
-          </kbd>
         </div>
 
         {/* Results */}
-        <div className="max-h-80 overflow-y-auto py-1">
+        <div className="flex-1 min-h-0 overflow-y-auto scroll-py-2 p-2">
           {filtered.length === 0 && (
-            <div className="px-4 py-6 text-center text-[12px] text-[var(--color-fg-dim)]">
-              No commands match your query.
+            <div className="py-6 text-center text-[12px] text-[var(--color-fg-muted)]">
+              No results found.
             </div>
           )}
-          {sections.map(([section, cmds]) => (
+          {sections.map(([section, cmds], sectionIdx) => (
             <div key={section}>
-              <div className="px-4 py-1.5">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-fg-dim)]">
+              {sectionIdx > 0 && <div className="my-2 h-px bg-[var(--color-border)]" />}
+              <div className="px-2 py-1.5">
+                <span className="text-[10px] font-medium text-[var(--color-fg-muted)]/72 tracking-widest uppercase">
                   {section}
                 </span>
               </div>
@@ -439,14 +445,16 @@ export function CommandPalette({ open, onClose, onOpenSettings }: CommandPalette
                     type="button"
                     onClick={cmd.action}
                     onMouseEnter={() => setSelectedIndex(idx)}
-                    className={`
-                      w-full flex items-center gap-3 px-4 py-2 text-left cursor-pointer transition-colors
-                      ${idx === selectedIndex ? "bg-[var(--color-bg-overlay)]" : ""}
-                    `}
+                    className={cn(
+                      "w-full flex items-center gap-3 rounded-lg px-2 py-1.5 text-left cursor-pointer transition-colors",
+                      idx === selectedIndex
+                        ? "bg-[var(--color-bg-overlay)] text-[var(--color-fg)]"
+                        : "text-[var(--color-fg-secondary)]",
+                    )}
                   >
                     <Icon className="size-4 shrink-0 text-[var(--color-fg-muted)]" />
-                    <div className="flex-1 min-w-0">
-                      <span className="text-[12px] text-[var(--color-fg)]">{cmd.label}</span>
+                    <div className="flex-1 min-w-0 truncate">
+                      <span className="text-[13px]">{cmd.label}</span>
                       {cmd.description && (
                         <span className="text-[11px] text-[var(--color-fg-dim)] ml-2">
                           {cmd.description}
@@ -454,7 +462,7 @@ export function CommandPalette({ open, onClose, onOpenSettings }: CommandPalette
                       )}
                     </div>
                     {cmd.shortcut && (
-                      <kbd className="text-[10px] text-[var(--color-fg-dim)] bg-[var(--color-bg-inset)] px-1.5 py-0.5 rounded border border-[var(--color-border)] shrink-0">
+                      <kbd className="ms-auto text-[10px] font-medium font-sans text-[var(--color-fg-muted)]/72 tracking-widest shrink-0">
                         {cmd.shortcut}
                       </kbd>
                     )}
@@ -463,6 +471,30 @@ export function CommandPalette({ open, onClose, onOpenSettings }: CommandPalette
               })}
             </div>
           ))}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between gap-2 rounded-b-[calc(1rem-1px)] border-t border-[var(--color-border)] px-4 py-2.5 text-[var(--color-fg-muted)] text-[11px]">
+          <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1">
+              <kbd className="text-[10px] font-mono bg-[var(--color-bg-overlay)] px-1 py-px rounded border border-[var(--color-border)]">
+                &uarr;&darr;
+              </kbd>
+              navigate
+            </span>
+            <span className="flex items-center gap-1">
+              <kbd className="text-[10px] font-mono bg-[var(--color-bg-overlay)] px-1 py-px rounded border border-[var(--color-border)]">
+                &crarr;
+              </kbd>
+              select
+            </span>
+            <span className="flex items-center gap-1">
+              <kbd className="text-[10px] font-mono bg-[var(--color-bg-overlay)] px-1 py-px rounded border border-[var(--color-border)]">
+                esc
+              </kbd>
+              close
+            </span>
+          </div>
         </div>
       </div>
     </div>
