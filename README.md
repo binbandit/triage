@@ -125,11 +125,55 @@ All review conditions use AND logic - every specified condition must be met.
 
 When no `.triage.yml` is found, PRs are displayed as a flat list (or flat kanban columns) without grouping.
 
+## Local config override
+
+You can define a local config file at `~/.config/triage/triage.yaml` that **overrides** the repo's `.triage.yml`. This lets you experiment with different groupings without committing changes to the repo.
+
+The local config uses the same format, but wrapped under `owner/repo` keys so you can configure multiple repositories in one file:
+
+```yaml
+vercel/next.js:
+  ready-to-merge:
+    description: "My custom ready group"
+    labels:
+      - approved
+      - ci-passed
+    review:
+      min_approvals: 2
+
+  needs-review:
+    match: any
+    labels:
+      - needs-review
+      - review-requested
+
+facebook/react:
+  urgent:
+    - priority:critical
+    - bug
+```
+
+### Priority
+
+1. **Local config** (`~/.config/triage/triage.yaml`) is checked first
+2. **Repo config** (`.triage.yml` in the repository root) is used as fallback
+3. If neither exists, PRs are displayed as a flat list
+
+The Settings panel shows which config is active (blue dot for local, green dot for repo) along with the group count. Use the "Open config folder" button to quickly navigate to the config directory.
+
+### Tips
+
+- Use the local config to trial groupings before proposing changes to the repo
+- Override the repo config when you want a personal view that differs from the team's
+- Both simple and enhanced formats work inside local config — the value under each `owner/repo` key uses the exact same schema as `.triage.yml`
+
 ## Settings
 
 Open the gear icon in the header to configure:
 
 - **Appearance** - toggle between dark and light themes
+- **Inline PR view** - view PR/issue details, diffs, and conversations without leaving the app (off by default)
+- **Account** - switch between authenticated `gh` CLI accounts
 
 Settings and the last-viewed repository are persisted in localStorage.
 
