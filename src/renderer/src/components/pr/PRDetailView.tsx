@@ -18,7 +18,6 @@ const TAB_CONFIG = [
 
 export function PRDetailView({ repo }: PRDetailViewProps) {
   const detail = usePRDetailStore((s) => s.detail);
-  const diff = usePRDetailStore((s) => s.diff);
   const loading = usePRDetailStore((s) => s.loading);
   const error = usePRDetailStore((s) => s.error);
   const tab = usePRDetailStore((s) => s.tab);
@@ -144,7 +143,9 @@ export function PRDetailView({ repo }: PRDetailViewProps) {
           />
         )}
         {tab === "commits" && <CommitsTab pr={detail} repo={repo} />}
-        {tab === "changes" && <ChangesTab files={diff} repo={repo} prNumber={detail.number} />}
+        {tab === "changes" && (
+          <ChangesTab files={detail.files ?? []} repo={repo} prNumber={detail.number} />
+        )}
       </div>
     </div>
   );

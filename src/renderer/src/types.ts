@@ -46,6 +46,7 @@ export interface PRFile {
   additions: number;
   deletions: number;
   changeType: "ADDED" | "MODIFIED" | "DELETED" | "RENAMED" | "COPIED";
+  patch?: string;
 }
 
 export interface PRCheckRun {
