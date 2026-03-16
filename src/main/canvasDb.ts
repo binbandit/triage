@@ -1,65 +1,8 @@
-import Database from "better-sqlite3";
+import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import { mkdirSync } from "node:fs";
-import { app } from "electron";
+import { homedir } from "node:os";
 
-let db: Database.Database | null = null;
-
-function getDb(): Database.Database {
-  if (db) return db;
-
-  const userDataPath = app.getPath("userData");
-  const dbDir = join(userDataPath, "canvas");
-  mkdirSync(dbDir, { recursive: true });
-  const dbPath = join(dbDir, "canvas.db");
-
-  db = new Database(dbPath);
-  db.pragma("journal_mode = WAL");
-  db.pragma("foreign_keys = ON");
-
-  // Create tables
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS nodes (
-      id TEXT PRIMARY KEY,
-      repo TEXT NOT NULL,
-      type TEXT NOT NULL CHECK(type IN ('pr', 'issue')),
-      number INTEGER NOT NULL,
-      x REAL NOT NULL DEFAULT 0,
-      y REAL NOT NULL DEFAULT 0,
-      width REAL NOT NULL DEFAULT 240,
-      height REAL NOT NULL DEFAULT 100,
-      zone_id TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      UNIQUE(repo, type, number)
-    );
-
-    CREATE TABLE IF NOT EXISTS zones (
-      id TEXT PRIMARY KEY,
-      repo TEXT NOT NULL,
-      label TEXT NOT NULL DEFAULT '',
-      color TEXT NOT NULL DEFAULT '#3b82f6',
-      x REAL NOT NULL DEFAULT 0,
-      y REAL NOT NULL DEFAULT 0,
-      width REAL NOT NULL DEFAULT 400,
-      height REAL NOT NULL DEFAULT 300,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS viewport (
-      repo TEXT PRIMARY KEY,
-      pan_x REAL NOT NULL DEFAULT 0,
-      pan_y REAL NOT NULL DEFAULT 0,
-      zoom REAL NOT NULL DEFAULT 1
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_nodes_repo ON nodes(repo);
-    CREATE INDEX IF NOT EXISTS idx_zones_repo ON zones(repo);
-  `);
-
-  return db;
-}
-
-// ── Node operations ──────────────────────────────────
+const DB_DIR = join(homedir(), ".config", "triage", "db");
 
 export interface CanvasNode {
   id: string;
@@ -73,38 +16,6 @@ export interface CanvasNode {
   zone_id: string | null;
 }
 
-export function getNodes(repo: string): CanvasNode[] {
-  return getDb().prepare("SELECT * FROM nodes WHERE repo = ?").all(repo) as CanvasNode[];
-}
-
-export function upsertNode(node: CanvasNode): void {
-  getDb()
-    .prepare(
-      `INSERT INTO nodes (id, repo, type, number, x, y, width, height, zone_id)
-       VALUES (@id, @repo, @type, @number, @x, @y, @width, @height, @zone_id)
-       ON CONFLICT(id) DO UPDATE SET x=@x, y=@y, width=@width, height=@height, zone_id=@zone_id`,
-    )
-    .run(node);
-}
-
-export function updateNodePosition(id: string, x: number, y: number): void {
-  getDb().prepare("UPDATE nodes SET x = ?, y = ? WHERE id = ?").run(x, y, id);
-}
-
-export function updateNodeZone(id: string, zoneId: string | null): void {
-  getDb().prepare("UPDATE nodes SET zone_id = ? WHERE id = ?").run(zoneId, id);
-}
-
-export function deleteNode(id: string): void {
-  getDb().prepare("DELETE FROM nodes WHERE id = ?").run(id);
-}
-
-export function deleteNodesForRepo(repo: string): void {
-  getDb().prepare("DELETE FROM nodes WHERE repo = ?").run(repo);
-}
-
-// ── Zone operations ──────────────────────────────────
-
 export interface CanvasZone {
   id: string;
   repo: string;
@@ -116,87 +27,139 @@ export interface CanvasZone {
   height: number;
 }
 
-export function getZones(repo: string): CanvasZone[] {
-  return getDb().prepare("SELECT * FROM zones WHERE repo = ?").all(repo) as CanvasZone[];
-}
-
-export function upsertZone(zone: CanvasZone): void {
-  getDb()
-    .prepare(
-      `INSERT INTO zones (id, repo, label, color, x, y, width, height)
-       VALUES (@id, @repo, @label, @color, @x, @y, @width, @height)
-       ON CONFLICT(id) DO UPDATE SET label=@label, color=@color, x=@x, y=@y, width=@width, height=@height`,
-    )
-    .run(zone);
-}
-
-export function updateZonePosition(id: string, x: number, y: number): void {
-  getDb().prepare("UPDATE zones SET x = ?, y = ? WHERE id = ?").run(x, y, id);
-}
-
-export function updateZoneSize(id: string, width: number, height: number): void {
-  getDb().prepare("UPDATE zones SET width = ?, height = ? WHERE id = ?").run(width, height, id);
-}
-
-export function updateZoneLabel(id: string, label: string): void {
-  getDb().prepare("UPDATE zones SET label = ? WHERE id = ?").run(label, id);
-}
-
-export function deleteZone(id: string): void {
-  getDb().prepare("UPDATE nodes SET zone_id = NULL WHERE zone_id = ?").run(id);
-  getDb().prepare("DELETE FROM zones WHERE id = ?").run(id);
-}
-
-// ── Viewport operations ──────────────────────────────
-
 export interface CanvasViewport {
   pan_x: number;
   pan_y: number;
   zoom: number;
 }
 
-export function getViewport(repo: string): CanvasViewport {
-  const row = getDb().prepare("SELECT * FROM viewport WHERE repo = ?").get(repo) as
-    | CanvasViewport
-    | undefined;
-  return row ?? { pan_x: 0, pan_y: 0, zoom: 1 };
+interface CanvasData {
+  nodes: CanvasNode[];
+  zones: CanvasZone[];
+  viewport: CanvasViewport;
 }
 
-export function saveViewport(repo: string, viewport: CanvasViewport): void {
-  getDb()
-    .prepare(
-      `INSERT INTO viewport (repo, pan_x, pan_y, zoom)
-       VALUES (?, ?, ?, ?)
-       ON CONFLICT(repo) DO UPDATE SET pan_x=?, pan_y=?, zoom=?`,
-    )
-    .run(
-      repo,
-      viewport.pan_x,
-      viewport.pan_y,
-      viewport.zoom,
-      viewport.pan_x,
-      viewport.pan_y,
-      viewport.zoom,
-    );
+function repoFileName(repo: string): string {
+  return repo.replace("/", "__") + ".json";
 }
 
-// ── Batch operations ─────────────────────────────────
-
-export function batchUpsertNodes(nodes: CanvasNode[]): void {
-  const stmt = getDb().prepare(
-    `INSERT INTO nodes (id, repo, type, number, x, y, width, height, zone_id)
-     VALUES (@id, @repo, @type, @number, @x, @y, @width, @height, @zone_id)
-     ON CONFLICT(id) DO UPDATE SET x=@x, y=@y, width=@width, height=@height, zone_id=@zone_id`,
-  );
-  const tx = getDb().transaction((items: CanvasNode[]) => {
-    for (const item of items) stmt.run(item);
-  });
-  tx(nodes);
+async function ensureDir(): Promise<void> {
+  await mkdir(DB_DIR, { recursive: true });
 }
 
-export function closeDb(): void {
-  if (db) {
-    db.close();
-    db = null;
+async function readRepoData(repo: string): Promise<CanvasData> {
+  try {
+    const raw = await readFile(join(DB_DIR, repoFileName(repo)), "utf-8");
+    return JSON.parse(raw) as CanvasData;
+  } catch {
+    return { nodes: [], zones: [], viewport: { pan_x: 0, pan_y: 0, zoom: 1 } };
   }
+}
+
+async function writeRepoData(repo: string, data: CanvasData): Promise<void> {
+  await ensureDir();
+  await writeFile(join(DB_DIR, repoFileName(repo)), JSON.stringify(data, null, 2), "utf-8");
+}
+
+export async function getNodes(repo: string): Promise<CanvasNode[]> {
+  return (await readRepoData(repo)).nodes;
+}
+
+export async function updateNodePosition(
+  repo: string,
+  id: string,
+  x: number,
+  y: number,
+): Promise<void> {
+  const data = await readRepoData(repo);
+  const node = data.nodes.find((n) => n.id === id);
+  if (node) {
+    node.x = x;
+    node.y = y;
+    await writeRepoData(repo, data);
+  }
+}
+
+export async function batchUpsertNodes(repo: string, nodes: CanvasNode[]): Promise<void> {
+  const data = await readRepoData(repo);
+  for (const node of nodes) {
+    const idx = data.nodes.findIndex((n) => n.id === node.id);
+    if (idx >= 0) data.nodes[idx] = node;
+    else data.nodes.push(node);
+  }
+  await writeRepoData(repo, data);
+}
+
+export async function deleteNode(repo: string, id: string): Promise<void> {
+  const data = await readRepoData(repo);
+  data.nodes = data.nodes.filter((n) => n.id !== id);
+  await writeRepoData(repo, data);
+}
+
+export async function getZones(repo: string): Promise<CanvasZone[]> {
+  return (await readRepoData(repo)).zones;
+}
+
+export async function upsertZone(repo: string, zone: CanvasZone): Promise<void> {
+  const data = await readRepoData(repo);
+  const idx = data.zones.findIndex((z) => z.id === zone.id);
+  if (idx >= 0) data.zones[idx] = zone;
+  else data.zones.push(zone);
+  await writeRepoData(repo, data);
+}
+
+export async function updateZonePosition(
+  repo: string,
+  id: string,
+  x: number,
+  y: number,
+): Promise<void> {
+  const data = await readRepoData(repo);
+  const zone = data.zones.find((z) => z.id === id);
+  if (zone) {
+    zone.x = x;
+    zone.y = y;
+    await writeRepoData(repo, data);
+  }
+}
+
+export async function updateZoneSize(
+  repo: string,
+  id: string,
+  w: number,
+  h: number,
+): Promise<void> {
+  const data = await readRepoData(repo);
+  const zone = data.zones.find((z) => z.id === id);
+  if (zone) {
+    zone.width = w;
+    zone.height = h;
+    await writeRepoData(repo, data);
+  }
+}
+
+export async function updateZoneLabel(repo: string, id: string, label: string): Promise<void> {
+  const data = await readRepoData(repo);
+  const zone = data.zones.find((z) => z.id === id);
+  if (zone) {
+    zone.label = label;
+    await writeRepoData(repo, data);
+  }
+}
+
+export async function deleteZone(repo: string, id: string): Promise<void> {
+  const data = await readRepoData(repo);
+  data.zones = data.zones.filter((z) => z.id !== id);
+  data.nodes = data.nodes.map((n) => (n.zone_id === id ? { ...n, zone_id: null } : n));
+  await writeRepoData(repo, data);
+}
+
+export async function getViewport(repo: string): Promise<CanvasViewport> {
+  return (await readRepoData(repo)).viewport;
+}
+
+export async function saveViewport(repo: string, viewport: CanvasViewport): Promise<void> {
+  const data = await readRepoData(repo);
+  data.viewport = viewport;
+  await writeRepoData(repo, data);
 }

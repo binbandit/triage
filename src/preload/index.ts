@@ -105,21 +105,23 @@ contextBridge.exposeInMainWorld("api", {
 
   // Canvas DB
   canvasGetNodes: (repo: string) => ipcRenderer.invoke("canvas:get-nodes", repo),
-  canvasUpsertNode: (node: unknown) => ipcRenderer.invoke("canvas:upsert-node", node),
-  canvasUpdateNodePos: (opts: { id: string; x: number; y: number }) =>
+  canvasUpdateNodePos: (opts: { repo: string; id: string; x: number; y: number }) =>
     ipcRenderer.invoke("canvas:update-node-pos", opts),
-  canvasDeleteNode: (id: string) => ipcRenderer.invoke("canvas:delete-node", id),
-  canvasBatchUpsertNodes: (nodes: unknown[]) =>
-    ipcRenderer.invoke("canvas:batch-upsert-nodes", nodes),
+  canvasDeleteNode: (opts: { repo: string; id: string }) =>
+    ipcRenderer.invoke("canvas:delete-node", opts),
+  canvasBatchUpsertNodes: (opts: { repo: string; nodes: unknown[] }) =>
+    ipcRenderer.invoke("canvas:batch-upsert-nodes", opts),
   canvasGetZones: (repo: string) => ipcRenderer.invoke("canvas:get-zones", repo),
-  canvasUpsertZone: (zone: unknown) => ipcRenderer.invoke("canvas:upsert-zone", zone),
-  canvasUpdateZonePos: (opts: { id: string; x: number; y: number }) =>
+  canvasUpsertZone: (opts: { repo: string; zone: unknown }) =>
+    ipcRenderer.invoke("canvas:upsert-zone", opts),
+  canvasUpdateZonePos: (opts: { repo: string; id: string; x: number; y: number }) =>
     ipcRenderer.invoke("canvas:update-zone-pos", opts),
-  canvasUpdateZoneSize: (opts: { id: string; width: number; height: number }) =>
+  canvasUpdateZoneSize: (opts: { repo: string; id: string; width: number; height: number }) =>
     ipcRenderer.invoke("canvas:update-zone-size", opts),
-  canvasUpdateZoneLabel: (opts: { id: string; label: string }) =>
+  canvasUpdateZoneLabel: (opts: { repo: string; id: string; label: string }) =>
     ipcRenderer.invoke("canvas:update-zone-label", opts),
-  canvasDeleteZone: (id: string) => ipcRenderer.invoke("canvas:delete-zone", id),
+  canvasDeleteZone: (opts: { repo: string; id: string }) =>
+    ipcRenderer.invoke("canvas:delete-zone", opts),
   canvasGetViewport: (repo: string) => ipcRenderer.invoke("canvas:get-viewport", repo),
   canvasSaveViewport: (opts: { repo: string; viewport: unknown }) =>
     ipcRenderer.invoke("canvas:save-viewport", opts),

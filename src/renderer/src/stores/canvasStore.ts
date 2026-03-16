@@ -146,7 +146,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
     // Save new nodes to DB
     if (newItems.length > 0) {
       const toSave = nodes.filter((n) => !existingNodeMap.has(n.id));
-      await window.api.canvasBatchUpsertNodes(toSave);
+      await window.api.canvasBatchUpsertNodes({ repo, nodes: toSave });
     }
 
     // Compute arrows: issue -> PR links
@@ -178,24 +178,27 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   },
 
   moveNode: (id, x, y) => {
+    const node = get().nodes.find((n) => n.id === id);
     set((s) => ({
       nodes: s.nodes.map((n) => (n.id === id ? { ...n, x, y } : n)),
     }));
-    window.api.canvasUpdateNodePos({ id, x, y });
+    if (node) window.api.canvasUpdateNodePos({ repo: node.repo, id, x, y });
   },
 
   moveZone: (id, x, y) => {
+    const zone = get().zones.find((z) => z.id === id);
     set((s) => ({
       zones: s.zones.map((z) => (z.id === id ? { ...z, x, y } : z)),
     }));
-    window.api.canvasUpdateZonePos({ id, x, y });
+    if (zone) window.api.canvasUpdateZonePos({ repo: zone.repo, id, x, y });
   },
 
   resizeZone: (id, width, height) => {
+    const zone = get().zones.find((z) => z.id === id);
     set((s) => ({
       zones: s.zones.map((z) => (z.id === id ? { ...z, width, height } : z)),
     }));
-    window.api.canvasUpdateZoneSize({ id, width, height });
+    if (zone) window.api.canvasUpdateZoneSize({ repo: zone.repo, id, width, height });
   },
 
   addZone: (repo) => {
@@ -211,22 +214,24 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
       height: 300,
     };
     set((s) => ({ zones: [...s.zones, zone] }));
-    window.api.canvasUpsertZone(zone);
+    window.api.canvasUpsertZone({ repo, zone });
   },
 
   deleteZone: (id) => {
+    const zone = get().zones.find((z) => z.id === id);
     set((s) => ({
       zones: s.zones.filter((z) => z.id !== id),
       nodes: s.nodes.map((n) => (n.zone_id === id ? { ...n, zone_id: null } : n)),
     }));
-    window.api.canvasDeleteZone(id);
+    if (zone) window.api.canvasDeleteZone({ repo: zone.repo, id });
   },
 
   renameZone: (id, label) => {
+    const zone = get().zones.find((z) => z.id === id);
     set((s) => ({
       zones: s.zones.map((z) => (z.id === id ? { ...z, label } : z)),
     }));
-    window.api.canvasUpdateZoneLabel({ id, label });
+    if (zone) window.api.canvasUpdateZoneLabel({ repo: zone.repo, id, label });
   },
 
   selectNode: (id) => set({ selectedNodeId: id }),

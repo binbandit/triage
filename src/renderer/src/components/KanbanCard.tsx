@@ -8,6 +8,8 @@ import {
   GripVertical,
 } from "lucide-react";
 import type { PullRequest } from "../types";
+import { useSettingsStore } from "../stores/settingsStore";
+import { usePRDetailStore } from "../stores/prDetailStore";
 import { LabelBadge } from "./LabelBadge";
 
 interface KanbanCardProps {
@@ -31,10 +33,16 @@ function timeAgo(dateStr: string): string {
 
 export function KanbanCard({ pr, repo, onDragStart }: KanbanCardProps) {
   const canDrag = pr.state === "OPEN";
+  const inlinePRView = useSettingsStore((s) => s.inlinePRView);
+  const openPR = usePRDetailStore((s) => s.openPR);
 
   const handleOpen = () => {
-    const url = repo ? `https://github.com/${repo}/pull/${pr.number}` : pr.url;
-    window.api.openExternal(url);
+    if (inlinePRView && repo) {
+      openPR(repo, pr.number);
+    } else {
+      const url = repo ? `https://github.com/${repo}/pull/${pr.number}` : pr.url;
+      window.api.openExternal(url);
+    }
   };
 
   return (

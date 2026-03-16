@@ -544,7 +544,6 @@ ipcMain.handle("gh:search-users", async (_event, options: { query: string }) => 
 
 import {
   getNodes,
-  upsertNode,
   updateNodePosition,
   deleteNode,
   getZones,
@@ -556,60 +555,66 @@ import {
   getViewport,
   saveViewport,
   batchUpsertNodes,
-  closeDb,
   type CanvasNode,
-  type CanvasZone,
   type CanvasViewport,
 } from "./canvasDb";
 
-ipcMain.handle("canvas:get-nodes", (_event, repo: string) => getNodes(repo));
-ipcMain.handle("canvas:upsert-node", (_event, node: CanvasNode) => {
-  upsertNode(node);
-  return { success: true };
-});
-ipcMain.handle("canvas:update-node-pos", (_event, opts: { id: string; x: number; y: number }) => {
-  updateNodePosition(opts.id, opts.x, opts.y);
-  return { success: true };
-});
-ipcMain.handle("canvas:delete-node", (_event, id: string) => {
-  deleteNode(id);
-  return { success: true };
-});
-ipcMain.handle("canvas:batch-upsert-nodes", (_event, nodes: CanvasNode[]) => {
-  batchUpsertNodes(nodes);
-  return { success: true };
-});
-
-ipcMain.handle("canvas:get-zones", (_event, repo: string) => getZones(repo));
-ipcMain.handle("canvas:upsert-zone", (_event, zone: CanvasZone) => {
-  upsertZone(zone);
-  return { success: true };
-});
-ipcMain.handle("canvas:update-zone-pos", (_event, opts: { id: string; x: number; y: number }) => {
-  updateZonePosition(opts.id, opts.x, opts.y);
-  return { success: true };
-});
+ipcMain.handle("canvas:get-nodes", async (_event, repo: string) => getNodes(repo));
 ipcMain.handle(
-  "canvas:update-zone-size",
-  (_event, opts: { id: string; width: number; height: number }) => {
-    updateZoneSize(opts.id, opts.width, opts.height);
+  "canvas:update-node-pos",
+  async (_event, opts: { repo: string; id: string; x: number; y: number }) => {
+    await updateNodePosition(opts.repo, opts.id, opts.x, opts.y);
     return { success: true };
   },
 );
-ipcMain.handle("canvas:update-zone-label", (_event, opts: { id: string; label: string }) => {
-  updateZoneLabel(opts.id, opts.label);
+ipcMain.handle("canvas:delete-node", async (_event, opts: { repo: string; id: string }) => {
+  await deleteNode(opts.repo, opts.id);
   return { success: true };
 });
-ipcMain.handle("canvas:delete-zone", (_event, id: string) => {
-  deleteZone(id);
+ipcMain.handle(
+  "canvas:batch-upsert-nodes",
+  async (_event, opts: { repo: string; nodes: CanvasNode[] }) => {
+    await batchUpsertNodes(opts.repo, opts.nodes);
+    return { success: true };
+  },
+);
+
+ipcMain.handle("canvas:get-zones", async (_event, repo: string) => getZones(repo));
+ipcMain.handle("canvas:upsert-zone", async (_event, opts: { repo: string; zone: unknown }) => {
+  await upsertZone(opts.repo, opts.zone as Parameters<typeof upsertZone>[1]);
+  return { success: true };
+});
+ipcMain.handle(
+  "canvas:update-zone-pos",
+  async (_event, opts: { repo: string; id: string; x: number; y: number }) => {
+    await updateZonePosition(opts.repo, opts.id, opts.x, opts.y);
+    return { success: true };
+  },
+);
+ipcMain.handle(
+  "canvas:update-zone-size",
+  async (_event, opts: { repo: string; id: string; width: number; height: number }) => {
+    await updateZoneSize(opts.repo, opts.id, opts.width, opts.height);
+    return { success: true };
+  },
+);
+ipcMain.handle(
+  "canvas:update-zone-label",
+  async (_event, opts: { repo: string; id: string; label: string }) => {
+    await updateZoneLabel(opts.repo, opts.id, opts.label);
+    return { success: true };
+  },
+);
+ipcMain.handle("canvas:delete-zone", async (_event, opts: { repo: string; id: string }) => {
+  await deleteZone(opts.repo, opts.id);
   return { success: true };
 });
 
-ipcMain.handle("canvas:get-viewport", (_event, repo: string) => getViewport(repo));
+ipcMain.handle("canvas:get-viewport", async (_event, repo: string) => getViewport(repo));
 ipcMain.handle(
   "canvas:save-viewport",
-  (_event, opts: { repo: string; viewport: CanvasViewport }) => {
-    saveViewport(opts.repo, opts.viewport);
+  async (_event, opts: { repo: string; viewport: CanvasViewport }) => {
+    await saveViewport(opts.repo, opts.viewport);
     return { success: true };
   },
 );
@@ -631,5 +636,4 @@ app.whenReady().then(() => {
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
-  closeDb();
 });
