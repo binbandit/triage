@@ -92,6 +92,8 @@ contextBridge.exposeInMainWorld("api", {
   }) => ipcRenderer.invoke("gh:edit-issue", options),
 
   // Reactions
+  getReactions: (options: { repo: string; number: number }) =>
+    ipcRenderer.invoke("gh:get-reactions", options),
   addReaction: (options: {
     repo: string;
     commentId: string;

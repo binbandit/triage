@@ -100,81 +100,92 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   searchQuery: "",
 
   loadCanvas: async (repo, prs, issues) => {
-    set({ loading: true });
-
-    // Load saved state from DB
-    const [savedNodes, savedZones, savedViewport] = await Promise.all([
-      window.api.canvasGetNodes(repo),
-      window.api.canvasGetZones(repo),
-      window.api.canvasGetViewport(repo),
-    ]);
-
-    const existingNodeMap = new Map<string, CanvasNode>();
-    if (Array.isArray(savedNodes)) {
-      for (const n of savedNodes as CanvasNode[]) existingNodeMap.set(n.id, n);
+    // Only show loading spinner on first load, not on updates
+    if (get().nodes.length === 0) {
+      set({ loading: true });
     }
 
-    // Build all items (PRs + issues)
-    const allItems: { id: string; type: "pr" | "issue"; number: number }[] = [];
-    for (const pr of prs)
-      allItems.push({ id: makeNodeId("pr", pr.number), type: "pr", number: pr.number });
-    for (const issue of issues)
-      allItems.push({ id: makeNodeId("issue", issue.number), type: "issue", number: issue.number });
+    try {
+      // Load saved state from DB
+      const [savedNodes, savedZones, savedViewport] = await Promise.all([
+        window.api.canvasGetNodes(repo),
+        window.api.canvasGetZones(repo),
+        window.api.canvasGetViewport(repo),
+      ]);
 
-    // Find items that need positions (not in DB)
-    const newItems = allItems.filter((item) => !existingNodeMap.has(item.id));
-    const newPositions = autoLayout(newItems);
+      const existingNodeMap = new Map<string, CanvasNode>();
+      if (Array.isArray(savedNodes)) {
+        for (const n of savedNodes as CanvasNode[]) existingNodeMap.set(n.id, n);
+      }
 
-    // Build final node list
-    const nodes: CanvasNode[] = allItems.map((item) => {
-      const saved = existingNodeMap.get(item.id);
-      if (saved) return saved;
-      const pos = newPositions.get(item.id) ?? { x: 0, y: 0 };
-      return {
-        id: item.id,
-        repo,
-        type: item.type,
-        number: item.number,
-        x: pos.x,
-        y: pos.y,
-        width: 240,
-        height: 100,
-        zone_id: null,
-      };
-    });
+      // Build all items (PRs + issues)
+      const allItems: { id: string; type: "pr" | "issue"; number: number }[] = [];
+      for (const pr of prs)
+        allItems.push({ id: makeNodeId("pr", pr.number), type: "pr", number: pr.number });
+      for (const issue of issues)
+        allItems.push({
+          id: makeNodeId("issue", issue.number),
+          type: "issue",
+          number: issue.number,
+        });
 
-    // Save new nodes to DB
-    if (newItems.length > 0) {
-      const toSave = nodes.filter((n) => !existingNodeMap.has(n.id));
-      await window.api.canvasBatchUpsertNodes({ repo, nodes: toSave });
-    }
+      // Find items that need positions (not in DB)
+      const newItems = allItems.filter((item) => !existingNodeMap.has(item.id));
+      const newPositions = autoLayout(newItems);
 
-    // Compute arrows: issue -> PR links
-    const arrowSet: CanvasArrow[] = [];
-    const nodeIds = new Set(nodes.map((n) => n.id));
+      // Build final node list
+      const nodes: CanvasNode[] = allItems.map((item) => {
+        const saved = existingNodeMap.get(item.id);
+        if (saved) return saved;
+        const pos = newPositions.get(item.id) ?? { x: 0, y: 0 };
+        return {
+          id: item.id,
+          repo,
+          type: item.type,
+          number: item.number,
+          x: pos.x,
+          y: pos.y,
+          width: 240,
+          height: 100,
+          zone_id: null,
+        };
+      });
 
-    for (const pr of prs) {
-      const linked = parseLinkedIssues(pr.body);
-      for (const issue of linked) {
-        const fromId = makeNodeId("issue", issue.number);
-        const toId = makeNodeId("pr", pr.number);
-        if (nodeIds.has(fromId) && nodeIds.has(toId)) {
-          arrowSet.push({ fromId, toId });
+      // Save new nodes to DB
+      if (newItems.length > 0) {
+        const toSave = nodes.filter((n) => !existingNodeMap.has(n.id));
+        await window.api.canvasBatchUpsertNodes({ repo, nodes: toSave });
+      }
+
+      // Compute arrows: issue -> PR links
+      const arrowSet: CanvasArrow[] = [];
+      const nodeIds = new Set(nodes.map((n) => n.id));
+
+      for (const pr of prs) {
+        const linked = parseLinkedIssues(pr.body);
+        for (const issue of linked) {
+          const fromId = makeNodeId("issue", issue.number);
+          const toId = makeNodeId("pr", pr.number);
+          if (nodeIds.has(fromId) && nodeIds.has(toId)) {
+            arrowSet.push({ fromId, toId });
+          }
         }
       }
+
+      const vp = savedViewport as { pan_x?: number; pan_y?: number; zoom?: number } | null;
+
+      set({
+        nodes,
+        zones: Array.isArray(savedZones) ? (savedZones as CanvasZone[]) : [],
+        arrows: arrowSet,
+        viewport: vp
+          ? { panX: vp.pan_x ?? 0, panY: vp.pan_y ?? 0, zoom: vp.zoom ?? 1 }
+          : { panX: 0, panY: 0, zoom: 1 },
+        loading: false,
+      });
+    } catch {
+      set({ loading: false });
     }
-
-    const vp = savedViewport as { pan_x?: number; pan_y?: number; zoom?: number } | null;
-
-    set({
-      nodes,
-      zones: Array.isArray(savedZones) ? (savedZones as CanvasZone[]) : [],
-      arrows: arrowSet,
-      viewport: vp
-        ? { panX: vp.pan_x ?? 0, panY: vp.pan_y ?? 0, zoom: vp.zoom ?? 1 }
-        : { panX: 0, panY: 0, zoom: 1 },
-      loading: false,
-    });
   },
 
   moveNode: (id, x, y) => {

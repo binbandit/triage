@@ -1,9 +1,10 @@
 import { useState, useMemo } from "react";
 import { Check, AlertTriangle, MessageSquare, Pencil, Loader2, Reply, Minus } from "lucide-react";
-import type { PullRequestDetail } from "../../types";
+import type { PullRequestDetail, ReactionGroup } from "../../types";
 import { MarkdownBody } from "./MarkdownBody";
 import { MentionInput } from "./MentionInput";
 import { CommentActions } from "./CommentActions";
+import { ReactionDisplay } from "./ReactionDisplay";
 import { ChecksSection } from "./ChecksSection";
 import { Avatar } from "../ui/Avatar";
 
@@ -51,7 +52,14 @@ function ReviewBadge({ state }: { state: string }) {
 }
 
 type TimelineItem =
-  | { type: "comment"; id: string; author: string; body: string; date: string }
+  | {
+      type: "comment";
+      id: string;
+      author: string;
+      body: string;
+      date: string;
+      reactions?: ReactionGroup[];
+    }
   | { type: "review"; id: string; author: string; body: string; state: string; date: string };
 
 function TimelineCard({
@@ -107,12 +115,15 @@ function TimelineCard({
           </button>
         </div>
       </div>
-      {!collapsed && item.body && (
+      {!collapsed && (
         <div className="px-3 py-3">
-          <MarkdownBody
-            content={item.body}
-            className="text-[13px] text-[var(--color-fg)] leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_p]:mb-2 [&_ul]:pl-4 [&_ul]:list-disc [&_ol]:pl-4 [&_ol]:list-decimal"
-          />
+          {item.body && (
+            <MarkdownBody
+              content={item.body}
+              className="text-[13px] text-[var(--color-fg)] leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_p]:mb-2 [&_ul]:pl-4 [&_ul]:list-disc [&_ol]:pl-4 [&_ol]:list-decimal"
+            />
+          )}
+          {item.type === "comment" && <ReactionDisplay reactions={item.reactions} />}
         </div>
       )}
     </div>
@@ -146,6 +157,7 @@ export function ConversationTab({ pr, repo, onComment, onEditBody }: Conversatio
       author: c.author.login,
       body: c.body,
       date: c.createdAt,
+      reactions: c.reactionGroups,
     });
   }
 

@@ -493,6 +493,20 @@ ipcMain.handle(
 
 // ── IPC: Reactions ───────────────────────────────────
 
+ipcMain.handle("gh:get-reactions", async (_event, options: { repo: string; number: number }) => {
+  const { repo, number } = options;
+  try {
+    return await execGh([
+      "api",
+      `repos/${repo}/issues/${number}/reactions`,
+      "--jq",
+      "[group_by(.content)[] | {content: .[0].content, users: {totalCount: length}}]",
+    ]);
+  } catch {
+    return [];
+  }
+});
+
 ipcMain.handle(
   "gh:add-reaction",
   async (

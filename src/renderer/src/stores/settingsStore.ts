@@ -8,6 +8,7 @@ const DEFAULT_SETTINGS: Settings = {
   theme: "dark",
   viewMode: "list",
   inlinePRView: false,
+  interceptGitHubLinks: false,
 };
 
 function loadSettings(): Settings {
@@ -36,6 +37,7 @@ interface SettingsStore extends Settings {
   setTheme: (theme: Theme) => void;
   setViewMode: (viewMode: ViewMode) => void;
   setInlinePRView: (enabled: boolean) => void;
+  setInterceptGitHubLinks: (enabled: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsStore>((set, get) => {
@@ -49,6 +51,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => {
       theme: state.theme,
       viewMode: state.viewMode,
       inlinePRView: state.inlinePRView,
+      interceptGitHubLinks: state.interceptGitHubLinks,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
   };
@@ -70,6 +73,10 @@ export const useSettingsStore = create<SettingsStore>((set, get) => {
     },
     setInlinePRView: (inlinePRView) => {
       set({ inlinePRView });
+      persist();
+    },
+    setInterceptGitHubLinks: (interceptGitHubLinks) => {
+      set({ interceptGitHubLinks });
       persist();
     },
   };

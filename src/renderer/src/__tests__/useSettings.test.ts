@@ -9,6 +9,7 @@ beforeEach(() => {
     theme: "dark",
     viewMode: "list",
     inlinePRView: false,
+    interceptGitHubLinks: false,
   });
 });
 

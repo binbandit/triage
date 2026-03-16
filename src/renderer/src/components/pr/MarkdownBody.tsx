@@ -1,6 +1,10 @@
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
+import { useSettingsStore } from "../../stores/settingsStore";
+import { usePRDetailStore } from "../../stores/prDetailStore";
+import { useIssueDetailStore } from "../../stores/issueDetailStore";
+import { parseGitHubUrl } from "../../lib/githubUrl";
 
 interface MarkdownBodyProps {
   content: string;
@@ -10,9 +14,33 @@ interface MarkdownBodyProps {
 /**
  * Renders GitHub-flavored markdown with proper styling.
  * Supports tables, task lists, strikethrough, autolinks, and raw HTML.
+ * Intercepts GitHub PR/issue links when the setting is enabled.
  */
 export function MarkdownBody({ content, className = "" }: MarkdownBodyProps) {
+  const interceptLinks = useSettingsStore((s) => s.interceptGitHubLinks);
+  const inlinePRView = useSettingsStore((s) => s.inlinePRView);
+  const openPR = usePRDetailStore((s) => s.openPR);
+  const openIssue = useIssueDetailStore((s) => s.openIssue);
+
   if (!content) return null;
+
+  const handleLinkClick = (href: string) => {
+    if ((interceptLinks || inlinePRView) && href) {
+      const parsed = parseGitHubUrl(href);
+      if (parsed) {
+        const fullRepo = `${parsed.owner}/${parsed.repo}`;
+        if (parsed.type === "pull") {
+          openPR(fullRepo, parsed.number);
+          return;
+        }
+        if (parsed.type === "issues") {
+          openIssue(fullRepo, parsed.number);
+          return;
+        }
+      }
+    }
+    if (href) window.api.openExternal(href);
+  };
 
   return (
     <div className={`prose-triage ${className}`}>
@@ -25,10 +53,8 @@ export function MarkdownBody({ content, className = "" }: MarkdownBodyProps) {
               {...props}
               href={href}
               onClick={(e) => {
-                if (href) {
-                  e.preventDefault();
-                  window.api.openExternal(href);
-                }
+                e.preventDefault();
+                if (href) handleLinkClick(href);
               }}
               className="text-[var(--color-blue)] hover:underline cursor-pointer"
             >

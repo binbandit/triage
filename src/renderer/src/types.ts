@@ -23,6 +23,11 @@ export interface PRReviewRequest {
   login: string;
 }
 
+export interface ReactionGroup {
+  content: string;
+  users: { totalCount: number };
+}
+
 export interface PRComment {
   id: string;
   author: { login: string };
@@ -30,6 +35,8 @@ export interface PRComment {
   body: string;
   createdAt: string;
   updatedAt?: string;
+  url?: string;
+  reactionGroups?: ReactionGroup[];
 }
 
 export interface PRCommit {
@@ -138,6 +145,7 @@ export interface Settings {
   theme: Theme;
   viewMode: ViewMode;
   inlinePRView: boolean;
+  interceptGitHubLinks: boolean;
 }
 
 export interface LocalConfigResult {
@@ -265,6 +273,7 @@ export interface TriageAPI {
   }) => Promise<ActionResult>;
 
   // Reactions
+  getReactions: (options: { repo: string; number: number }) => Promise<ReactionGroup[]>;
   addReaction: (options: {
     repo: string;
     commentId: string;

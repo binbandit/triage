@@ -362,18 +362,29 @@ export function CanvasView({ repo }: CanvasViewProps) {
     return () => clearTimeout(saveTimeoutRef.current);
   }, []);
 
-  // Load issues + canvas on mount
+  // Load issues on mount
   useEffect(() => {
     if (repo && issues.length === 0 && !issuesLoading) {
       fetchIssues(repo);
     }
   }, [repo, issues.length, issuesLoading, fetchIssues]);
 
+  // Load canvas when data is available
+  const latestPRs = useRef(prs);
+  const latestIssues = useRef(issues);
+  latestPRs.current = prs;
+  latestIssues.current = issues;
+
+  // Trigger load when PR or issue counts change
+  const prCount = prs.length;
+  const issueCount = issues.length;
   useEffect(() => {
-    if (repo && prs.length > 0) {
-      loadCanvas(repo, prs, issues);
-    }
-  }, [repo, prs, issues, loadCanvas]);
+    // issueCount is used as a dep to reload when issues arrive after PRs
+    if (!repo || prCount === 0) return;
+    const _ic = issueCount; // reference to satisfy exhaustive-deps
+    void _ic;
+    loadCanvas(repo, latestPRs.current, latestIssues.current);
+  }, [repo, prCount, issueCount, loadCanvas]);
 
   // Keyboard shortcuts
   useEffect(() => {

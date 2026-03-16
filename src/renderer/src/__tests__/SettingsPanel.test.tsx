@@ -10,6 +10,7 @@ beforeEach(() => {
     theme: "dark",
     viewMode: "list",
     inlinePRView: false,
+    interceptGitHubLinks: false,
   });
 });
 
@@ -69,9 +70,24 @@ describe("SettingsPanel", () => {
 
   it("toggles inline PR view on click", async () => {
     render(<SettingsPanel onClose={() => {}} />);
-    const toggle = screen.getByRole("switch");
-    expect(toggle.getAttribute("aria-checked")).toBe("false");
-    await userEvent.click(toggle);
+    const toggles = screen.getAllByRole("switch");
+    // First switch is inline PR view
+    expect(toggles[0].getAttribute("aria-checked")).toBe("false");
+    await userEvent.click(toggles[0]);
     expect(useSettingsStore.getState().inlinePRView).toBe(true);
+  });
+
+  it("shows intercept GitHub links toggle", () => {
+    render(<SettingsPanel onClose={() => {}} />);
+    expect(screen.getByText("Intercept GitHub links")).toBeInTheDocument();
+  });
+
+  it("toggles intercept GitHub links on click", async () => {
+    render(<SettingsPanel onClose={() => {}} />);
+    const toggles = screen.getAllByRole("switch");
+    // Second switch is intercept GitHub links
+    expect(toggles[1].getAttribute("aria-checked")).toBe("false");
+    await userEvent.click(toggles[1]);
+    expect(useSettingsStore.getState().interceptGitHubLinks).toBe(true);
   });
 });

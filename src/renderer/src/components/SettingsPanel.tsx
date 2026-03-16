@@ -38,8 +38,10 @@ function ConfigSourceIndicator() {
 export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const theme = useSettingsStore((s) => s.theme);
   const inlinePRView = useSettingsStore((s) => s.inlinePRView);
+  const interceptGitHubLinks = useSettingsStore((s) => s.interceptGitHubLinks);
   const setTheme = useSettingsStore((s) => s.setTheme);
   const setInlinePRView = useSettingsStore((s) => s.setInlinePRView);
+  const setInterceptGitHubLinks = useSettingsStore((s) => s.setInterceptGitHubLinks);
 
   const [accounts, setAccounts] = useState<AuthAccount[]>([]);
   const [accountsLoading, setAccountsLoading] = useState(true);
@@ -199,6 +201,21 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
               </p>
             </div>
             <Switch checked={inlinePRView} onCheckedChange={setInlinePRView} />
+          </div>
+        </div>
+
+        {/* Intercept GitHub Links */}
+        <div className="mt-4 pt-4 border-t border-[var(--color-border)]">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[12px] font-medium text-[var(--color-fg-secondary)]">
+                Intercept GitHub links
+              </p>
+              <p className="text-[11px] text-[var(--color-fg-dim)] mt-0.5">
+                Open GitHub PR and issue links inside the app instead of the browser.
+              </p>
+            </div>
+            <Switch checked={interceptGitHubLinks} onCheckedChange={setInterceptGitHubLinks} />
           </div>
         </div>
 
