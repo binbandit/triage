@@ -10,7 +10,10 @@ contextBridge.exposeInMainWorld("api", {
   getPRDiff: (options: { repo: string; number: number }) =>
     ipcRenderer.invoke("gh:pr-diff", options),
 
-  // Auth & repo
+  // Auth & accounts
+  authAccounts: () => ipcRenderer.invoke("gh:auth-accounts"),
+  authSwitch: (options: { hostname: string; user: string }) =>
+    ipcRenderer.invoke("gh:auth-switch", options),
   authStatus: () => ipcRenderer.invoke("gh:auth-status"),
   currentRepo: () => ipcRenderer.invoke("gh:current-repo"),
   fetchConfig: (options: { repo: string; path?: string }) =>

@@ -171,6 +171,13 @@ export interface RepoLabel {
   description: string;
 }
 
+export interface AuthAccount {
+  login: string;
+  host: string;
+  active: boolean;
+  avatarUrl: string;
+}
+
 // ── Issue types ──────────────────────────────────────
 
 export interface Issue {
