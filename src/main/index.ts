@@ -219,6 +219,23 @@ ipcMain.handle(
   },
 );
 
+// ── IPC: Draft Toggle ────────────────────────────────
+
+ipcMain.handle(
+  "gh:toggle-draft",
+  async (_event, options: { repo: string; number: number; isDraft: boolean }) => {
+    const { repo, number, isDraft } = options;
+    if (isDraft) {
+      // Convert to draft using gh pr ready --undo
+      await execGh(["pr", "ready", String(number), "--repo", repo, "--undo"]);
+    } else {
+      // Mark as ready using gh pr ready
+      await execGh(["pr", "ready", String(number), "--repo", repo]);
+    }
+    return { success: true };
+  },
+);
+
 // ── IPC: Reviews ─────────────────────────────────────
 
 ipcMain.handle(
@@ -272,6 +289,89 @@ ipcMain.handle(
     if (side) payload.side = side;
 
     await execGh(["api", apiPath, "--method", "POST", "--input", "-", "--silent"]);
+    return { success: true };
+  },
+);
+
+// ── IPC: Issues ──────────────────────────────────────
+
+const ISSUE_LIST_FIELDS =
+  "number,title,url,state,author,body,labels,createdAt,updatedAt,closedAt,comments,assignees";
+
+ipcMain.handle(
+  "gh:list-issues",
+  async (_event, options: { repo: string; state?: string; limit?: number }) => {
+    const { repo, state = "open", limit = 200 } = options;
+    const args = [
+      "issue",
+      "list",
+      "--json",
+      ISSUE_LIST_FIELDS,
+      "--limit",
+      String(limit),
+      "--state",
+      state,
+      "--repo",
+      repo,
+    ];
+    return execGh(args);
+  },
+);
+
+ipcMain.handle("gh:get-issue", async (_event, options: { repo: string; number: number }) => {
+  const { repo, number } = options;
+  const args = ["issue", "view", String(number), "--json", ISSUE_LIST_FIELDS, "--repo", repo];
+  return execGh(args);
+});
+
+ipcMain.handle(
+  "gh:comment-issue",
+  async (_event, options: { repo: string; number: number; body: string }) => {
+    const { repo, number, body } = options;
+    await execGh(["issue", "comment", String(number), "--repo", repo, "--body", body]);
+    return { success: true };
+  },
+);
+
+ipcMain.handle(
+  "gh:close-issue",
+  async (_event, options: { repo: string; number: number; comment?: string }) => {
+    const { repo, number, comment } = options;
+    if (comment) {
+      await execGh(["issue", "comment", String(number), "--repo", repo, "--body", comment]);
+    }
+    await execGh(["issue", "close", String(number), "--repo", repo]);
+    return { success: true };
+  },
+);
+
+ipcMain.handle("gh:reopen-issue", async (_event, options: { repo: string; number: number }) => {
+  const { repo, number } = options;
+  await execGh(["issue", "reopen", String(number), "--repo", repo]);
+  return { success: true };
+});
+
+ipcMain.handle(
+  "gh:edit-issue",
+  async (
+    _event,
+    options: {
+      repo: string;
+      number: number;
+      title?: string;
+      body?: string;
+      addLabels?: string[];
+      removeLabels?: string[];
+    },
+  ) => {
+    const { repo, number, title, body, addLabels, removeLabels } = options;
+    const args = ["issue", "edit", String(number), "--repo", repo];
+    if (title) args.push("--title", title);
+    if (body) args.push("--body", body);
+    if (addLabels && addLabels.length > 0) args.push("--add-label", addLabels.join(","));
+    if (removeLabels && removeLabels.length > 0)
+      args.push("--remove-label", removeLabels.join(","));
+    await execGh(args);
     return { success: true };
   },
 );

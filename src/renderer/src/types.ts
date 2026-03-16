@@ -165,13 +165,30 @@ export interface GitHubUser {
   avatar_url?: string;
 }
 
+// ── Issue types ──────────────────────────────────────
+
+export interface Issue {
+  number: number;
+  title: string;
+  url: string;
+  state: string;
+  author: PRAuthor;
+  body: string;
+  labels: PRLabel[];
+  createdAt: string;
+  updatedAt: string;
+  closedAt?: string;
+  comments: PRComment[];
+  assignees: PRAssignee[];
+}
+
+// ── API ──────────────────────────────────────────────
+
 export interface TriageAPI {
+  // PRs
   listPRs: (options: { repo?: string; state?: string; limit?: number }) => Promise<PullRequest[]>;
   getPR: (options: { repo?: string; number: number }) => Promise<PullRequestDetail>;
   getPRDiff: (options: { repo: string; number: number }) => Promise<string>;
-  authStatus: () => Promise<AuthStatus>;
-  currentRepo: () => Promise<RepoInfo | null>;
-  fetchConfig: (options: { repo: string; path?: string }) => Promise<ConfigFetchResult>;
   closePR: (options: { repo: string; number: number; comment?: string }) => Promise<ActionResult>;
   mergePR: (options: { repo: string; number: number; comment?: string }) => Promise<ActionResult>;
   commentPR: (options: { repo: string; number: number; body: string }) => Promise<ActionResult>;
@@ -182,6 +199,11 @@ export interface TriageAPI {
     body?: string;
     addLabels?: string[];
     removeLabels?: string[];
+  }) => Promise<ActionResult>;
+  toggleDraft: (options: {
+    repo: string;
+    number: number;
+    isDraft: boolean;
   }) => Promise<ActionResult>;
   submitReview: (options: {
     repo: string;
@@ -198,6 +220,30 @@ export interface TriageAPI {
     startLine?: number;
     side?: string;
   }) => Promise<ActionResult>;
+
+  // Issues
+  listIssues: (options: { repo: string; state?: string; limit?: number }) => Promise<Issue[]>;
+  getIssue: (options: { repo: string; number: number }) => Promise<Issue>;
+  commentIssue: (options: { repo: string; number: number; body: string }) => Promise<ActionResult>;
+  closeIssue: (options: {
+    repo: string;
+    number: number;
+    comment?: string;
+  }) => Promise<ActionResult>;
+  reopenIssue: (options: { repo: string; number: number }) => Promise<ActionResult>;
+  editIssue: (options: {
+    repo: string;
+    number: number;
+    title?: string;
+    body?: string;
+    addLabels?: string[];
+    removeLabels?: string[];
+  }) => Promise<ActionResult>;
+
+  // Shared
+  authStatus: () => Promise<AuthStatus>;
+  currentRepo: () => Promise<RepoInfo | null>;
+  fetchConfig: (options: { repo: string; path?: string }) => Promise<ConfigFetchResult>;
   repoLabels: (options: { repo: string }) => Promise<string[] | string>;
   searchUsers: (options: { query: string }) => Promise<GitHubUser[]>;
   openExternal: (url: string) => Promise<void>;

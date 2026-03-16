@@ -13,6 +13,8 @@ import {
   Users,
 } from "lucide-react";
 import type { PullRequest } from "../types";
+import { useSettingsStore } from "../stores/settingsStore";
+import { usePRDetailStore } from "../stores/prDetailStore";
 import { LabelBadge } from "./LabelBadge";
 import { countApprovals, hasChangesRequested, countReviewers } from "../lib/prHelpers";
 import { parseLinkedIssues } from "../lib/parseIssues";
@@ -87,12 +89,18 @@ function ReviewIndicators({ pr }: { pr: PullRequest }) {
 
 export function PRRow({ pr, repo, highlightLabels = [] }: PRRowProps) {
   const [expanded, setExpanded] = useState(false);
+  const inlinePRView = useSettingsStore((s) => s.inlinePRView);
+  const openPR = usePRDetailStore((s) => s.openPR);
 
   const linkedIssues = useMemo(() => parseLinkedIssues(pr.body), [pr.body]);
   const hasIssues = linkedIssues.length > 0;
 
   const handleOpen = () => {
-    window.api.openExternal(pr.url);
+    if (inlinePRView && repo) {
+      openPR(repo, pr.number);
+    } else {
+      window.api.openExternal(pr.url);
+    }
   };
 
   const handleIssueClick = (issueNumber: number) => {

@@ -3,6 +3,7 @@ import { Settings as SettingsIcon, RefreshCw, List, Columns3, Loader2 } from "lu
 import { useSettingsStore } from "./stores/settingsStore";
 import { usePRStore } from "./stores/prStore";
 import { useConfigStore } from "./stores/configStore";
+import { usePRDetailStore } from "./stores/prDetailStore";
 import { filterPRs, groupPRs } from "./lib/prHelpers";
 import { classifyError } from "./lib/errorUtils";
 import { RepoInput } from "./components/RepoInput";
@@ -10,6 +11,7 @@ import { SearchBar } from "./components/SearchBar";
 import { PRRow } from "./components/PRRow";
 import { GroupSection } from "./components/GroupSection";
 import { KanbanView } from "./components/KanbanView";
+import { PRDetailView } from "./components/pr/PRDetailView";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { EmptyState } from "./components/EmptyState";
 
@@ -157,6 +159,7 @@ function AppHeader({ showSettings }: { showSettings: () => void }) {
 function AppContent() {
   const repo = useSettingsStore((s) => s.repo);
   const viewMode = useSettingsStore((s) => s.viewMode);
+  const inlinePRView = useSettingsStore((s) => s.inlinePRView);
 
   const prs = usePRStore((s) => s.prs);
   const loading = usePRStore((s) => s.loading);
@@ -165,6 +168,7 @@ function AppContent() {
   const fetchPRs = usePRStore((s) => s.fetchPRs);
   const fetchClosedPRs = usePRStore((s) => s.fetchClosedPRs);
   const fetchConfig = useConfigStore((s) => s.fetchConfig);
+  const activePR = usePRDetailStore((s) => s.activePR);
   const config = useConfigStore((s) => s.config);
 
   const openPRs = useMemo(() => prs.filter((pr) => pr.state === "OPEN"), [prs]);
@@ -192,6 +196,15 @@ function AppContent() {
       fetchConfig(repo);
     }
   }, [repo, fetchPRs, fetchConfig]);
+
+  // Show PR detail view if inline view is enabled and a PR is selected
+  if (inlinePRView && activePR && repo) {
+    return (
+      <main className="flex-1 overflow-hidden">
+        <PRDetailView repo={repo} />
+      </main>
+    );
+  }
 
   return (
     <main className="flex-1 overflow-hidden">

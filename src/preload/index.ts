@@ -34,6 +34,10 @@ contextBridge.exposeInMainWorld("api", {
     removeLabels?: string[];
   }) => ipcRenderer.invoke("gh:edit-pr", options),
 
+  // Draft toggle
+  toggleDraft: (options: { repo: string; number: number; isDraft: boolean }) =>
+    ipcRenderer.invoke("gh:toggle-draft", options),
+
   // Reviews
   submitReview: (options: {
     repo: string;
@@ -50,6 +54,26 @@ contextBridge.exposeInMainWorld("api", {
     startLine?: number;
     side?: string;
   }) => ipcRenderer.invoke("gh:review-comment", options),
+
+  // Issues
+  listIssues: (options: { repo: string; state?: string; limit?: number }) =>
+    ipcRenderer.invoke("gh:list-issues", options),
+  getIssue: (options: { repo: string; number: number }) =>
+    ipcRenderer.invoke("gh:get-issue", options),
+  commentIssue: (options: { repo: string; number: number; body: string }) =>
+    ipcRenderer.invoke("gh:comment-issue", options),
+  closeIssue: (options: { repo: string; number: number; comment?: string }) =>
+    ipcRenderer.invoke("gh:close-issue", options),
+  reopenIssue: (options: { repo: string; number: number }) =>
+    ipcRenderer.invoke("gh:reopen-issue", options),
+  editIssue: (options: {
+    repo: string;
+    number: number;
+    title?: string;
+    body?: string;
+    addLabels?: string[];
+    removeLabels?: string[];
+  }) => ipcRenderer.invoke("gh:edit-issue", options),
 
   // Repo data
   repoLabels: (options: { repo: string }) => ipcRenderer.invoke("gh:repo-labels", options),

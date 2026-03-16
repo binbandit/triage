@@ -34,6 +34,7 @@ interface PRDetailStore {
     event: "APPROVE" | "REQUEST_CHANGES" | "COMMENT",
     body?: string,
   ) => Promise<boolean>;
+  toggleDraft: (repo: string) => Promise<boolean>;
 }
 
 export const usePRDetailStore = create<PRDetailStore>((set, get) => ({
@@ -201,6 +202,26 @@ export const usePRDetailStore = create<PRDetailStore>((set, get) => ({
     } catch (err) {
       set({
         actionError: err instanceof Error ? err.message : "Failed to submit review",
+        actionLoading: false,
+      });
+      return false;
+    }
+  },
+
+  toggleDraft: async (repo) => {
+    const { activePR, detail } = get();
+    if (!activePR || !detail) return false;
+    set({ actionLoading: true, actionError: null });
+    try {
+      await window.api.toggleDraft({ repo, number: activePR, isDraft: !detail.isDraft });
+      set((s) => ({
+        detail: s.detail ? { ...s.detail, isDraft: !s.detail.isDraft } : null,
+        actionLoading: false,
+      }));
+      return true;
+    } catch (err) {
+      set({
+        actionError: err instanceof Error ? err.message : "Failed to toggle draft status",
         actionLoading: false,
       });
       return false;
