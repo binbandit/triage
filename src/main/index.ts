@@ -540,6 +540,80 @@ ipcMain.handle("gh:search-users", async (_event, options: { query: string }) => 
   }
 });
 
+// ── IPC: Canvas DB ───────────────────────────────────
+
+import {
+  getNodes,
+  upsertNode,
+  updateNodePosition,
+  deleteNode,
+  getZones,
+  upsertZone,
+  updateZonePosition,
+  updateZoneSize,
+  updateZoneLabel,
+  deleteZone,
+  getViewport,
+  saveViewport,
+  batchUpsertNodes,
+  closeDb,
+  type CanvasNode,
+  type CanvasZone,
+  type CanvasViewport,
+} from "./canvasDb";
+
+ipcMain.handle("canvas:get-nodes", (_event, repo: string) => getNodes(repo));
+ipcMain.handle("canvas:upsert-node", (_event, node: CanvasNode) => {
+  upsertNode(node);
+  return { success: true };
+});
+ipcMain.handle("canvas:update-node-pos", (_event, opts: { id: string; x: number; y: number }) => {
+  updateNodePosition(opts.id, opts.x, opts.y);
+  return { success: true };
+});
+ipcMain.handle("canvas:delete-node", (_event, id: string) => {
+  deleteNode(id);
+  return { success: true };
+});
+ipcMain.handle("canvas:batch-upsert-nodes", (_event, nodes: CanvasNode[]) => {
+  batchUpsertNodes(nodes);
+  return { success: true };
+});
+
+ipcMain.handle("canvas:get-zones", (_event, repo: string) => getZones(repo));
+ipcMain.handle("canvas:upsert-zone", (_event, zone: CanvasZone) => {
+  upsertZone(zone);
+  return { success: true };
+});
+ipcMain.handle("canvas:update-zone-pos", (_event, opts: { id: string; x: number; y: number }) => {
+  updateZonePosition(opts.id, opts.x, opts.y);
+  return { success: true };
+});
+ipcMain.handle(
+  "canvas:update-zone-size",
+  (_event, opts: { id: string; width: number; height: number }) => {
+    updateZoneSize(opts.id, opts.width, opts.height);
+    return { success: true };
+  },
+);
+ipcMain.handle("canvas:update-zone-label", (_event, opts: { id: string; label: string }) => {
+  updateZoneLabel(opts.id, opts.label);
+  return { success: true };
+});
+ipcMain.handle("canvas:delete-zone", (_event, id: string) => {
+  deleteZone(id);
+  return { success: true };
+});
+
+ipcMain.handle("canvas:get-viewport", (_event, repo: string) => getViewport(repo));
+ipcMain.handle(
+  "canvas:save-viewport",
+  (_event, opts: { repo: string; viewport: CanvasViewport }) => {
+    saveViewport(opts.repo, opts.viewport);
+    return { success: true };
+  },
+);
+
 // ── IPC: Shell ───────────────────────────────────────
 
 ipcMain.handle("shell:open-external", async (_event, url: string) => {
@@ -557,4 +631,5 @@ app.whenReady().then(() => {
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
+  closeDb();
 });

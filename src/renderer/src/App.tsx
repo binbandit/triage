@@ -7,6 +7,7 @@ import {
   Loader2,
   GitPullRequest,
   CircleDot,
+  LayoutDashboard,
 } from "lucide-react";
 import { useSettingsStore } from "./stores/settingsStore";
 import { usePRStore } from "./stores/prStore";
@@ -22,6 +23,7 @@ import { PRRow } from "./components/PRRow";
 import { GroupSection } from "./components/GroupSection";
 import { KanbanView } from "./components/KanbanView";
 import { IssueKanbanView } from "./components/IssueKanbanView";
+import { CanvasView } from "./components/canvas/CanvasView";
 import { PRDetailView } from "./components/pr/PRDetailView";
 import { IssueDetailView } from "./components/pr/IssueDetailView";
 import { SettingsPanel } from "./components/SettingsPanel";
@@ -144,6 +146,13 @@ function AppHeader({
                 label="Kanban view"
               >
                 <Columns3 className="size-3.5" />
+              </ViewToggleButton>
+              <ViewToggleButton
+                active={viewMode === "canvas"}
+                onClick={() => setViewMode("canvas")}
+                label="Canvas view"
+              >
+                <LayoutDashboard className="size-3.5" />
               </ViewToggleButton>
             </div>
           )}
@@ -304,6 +313,8 @@ function AppContent({
       {viewMode === "kanban" && kanbanContent === "issues" && (
         <IssueKanbanView issues={filteredIssues} repo={repo} loading={issuesLoading} />
       )}
+
+      {viewMode === "canvas" && repo && <CanvasView repo={repo} />}
 
       {hasResults && viewMode === "list" && hasGroups && (
         <div className="h-full overflow-y-auto">

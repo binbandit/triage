@@ -130,7 +130,7 @@ export interface TriageConfig {
 }
 
 export type Theme = "dark" | "light";
-export type ViewMode = "list" | "kanban";
+export type ViewMode = "list" | "kanban" | "canvas";
 export type KanbanContent = "prs" | "issues";
 
 export interface Settings {

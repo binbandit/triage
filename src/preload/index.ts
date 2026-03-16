@@ -103,6 +103,27 @@ contextBridge.exposeInMainWorld("api", {
   repoLabels: (options: { repo: string }) => ipcRenderer.invoke("gh:repo-labels", options),
   searchUsers: (options: { query: string }) => ipcRenderer.invoke("gh:search-users", options),
 
+  // Canvas DB
+  canvasGetNodes: (repo: string) => ipcRenderer.invoke("canvas:get-nodes", repo),
+  canvasUpsertNode: (node: unknown) => ipcRenderer.invoke("canvas:upsert-node", node),
+  canvasUpdateNodePos: (opts: { id: string; x: number; y: number }) =>
+    ipcRenderer.invoke("canvas:update-node-pos", opts),
+  canvasDeleteNode: (id: string) => ipcRenderer.invoke("canvas:delete-node", id),
+  canvasBatchUpsertNodes: (nodes: unknown[]) =>
+    ipcRenderer.invoke("canvas:batch-upsert-nodes", nodes),
+  canvasGetZones: (repo: string) => ipcRenderer.invoke("canvas:get-zones", repo),
+  canvasUpsertZone: (zone: unknown) => ipcRenderer.invoke("canvas:upsert-zone", zone),
+  canvasUpdateZonePos: (opts: { id: string; x: number; y: number }) =>
+    ipcRenderer.invoke("canvas:update-zone-pos", opts),
+  canvasUpdateZoneSize: (opts: { id: string; width: number; height: number }) =>
+    ipcRenderer.invoke("canvas:update-zone-size", opts),
+  canvasUpdateZoneLabel: (opts: { id: string; label: string }) =>
+    ipcRenderer.invoke("canvas:update-zone-label", opts),
+  canvasDeleteZone: (id: string) => ipcRenderer.invoke("canvas:delete-zone", id),
+  canvasGetViewport: (repo: string) => ipcRenderer.invoke("canvas:get-viewport", repo),
+  canvasSaveViewport: (opts: { repo: string; viewport: unknown }) =>
+    ipcRenderer.invoke("canvas:save-viewport", opts),
+
   // Shell
   openExternal: (url: string) => ipcRenderer.invoke("shell:open-external", url),
 });
