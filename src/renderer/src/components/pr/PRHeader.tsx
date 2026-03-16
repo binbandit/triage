@@ -11,6 +11,8 @@ import {
   Users,
   Pencil,
   Loader2,
+  RefreshCw,
+  Settings as SettingsIcon,
 } from "lucide-react";
 import type { PullRequestDetail } from "../../types";
 import { LabelBadge } from "../LabelBadge";
@@ -25,6 +27,8 @@ interface PRHeaderProps {
   onAddLabel: (label: string) => Promise<boolean>;
   onRemoveLabel: (label: string) => Promise<boolean>;
   onToggleDraft: () => Promise<boolean>;
+  onRefresh: () => void;
+  onSettings: () => void;
 }
 
 function StatusBadge({ pr }: { pr: PullRequestDetail }) {
@@ -68,6 +72,8 @@ export function PRHeader({
   onAddLabel,
   onRemoveLabel,
   onToggleDraft,
+  onRefresh,
+  onSettings,
 }: PRHeaderProps) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(pr.title);
@@ -114,6 +120,22 @@ export function PRHeader({
           {pr.number}
         </span>
         <div className="flex-1" />
+        <button
+          type="button"
+          onClick={onRefresh}
+          className="p-1 rounded-md cursor-pointer text-[var(--color-fg-dim)] hover:text-[var(--color-fg-secondary)] transition-colors"
+          aria-label="Refresh"
+        >
+          <RefreshCw className="size-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={onSettings}
+          className="p-1 rounded-md cursor-pointer text-[var(--color-fg-dim)] hover:text-[var(--color-fg-secondary)] transition-colors"
+          aria-label="Settings"
+        >
+          <SettingsIcon className="size-3.5" />
+        </button>
         <button
           type="button"
           onClick={() => window.api.openExternal(pr.url)}

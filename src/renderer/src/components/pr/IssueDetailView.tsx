@@ -8,15 +8,21 @@ import {
   Loader2,
   AlertCircle,
   X,
+  RefreshCw,
+  Settings as SettingsIcon,
+  Minus,
 } from "lucide-react";
 import { useIssueDetailStore } from "../../stores/issueDetailStore";
 import { LabelBadge } from "../LabelBadge";
 import { LabelPicker } from "./LabelPicker";
 import { MarkdownBody } from "./MarkdownBody";
 import { MentionInput } from "./MentionInput";
+import { Avatar } from "../ui/Avatar";
+import type { PRComment } from "../../types";
 
 interface IssueDetailViewProps {
   repo: string;
+  onSettings: () => void;
 }
 
 function timeFormat(dateStr: string): string {
@@ -30,7 +36,44 @@ function timeFormat(dateStr: string): string {
   });
 }
 
-export function IssueDetailView({ repo }: IssueDetailViewProps) {
+function IssueCommentCard({ comment }: { comment: PRComment }) {
+  const [collapsed, setCollapsed] = useState(false);
+  return (
+    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-raised)]">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--color-border)]">
+        <div className="flex items-center gap-2">
+          <Avatar login={comment.author.login} size={18} />
+          <span className="text-[11px] font-medium text-[var(--color-fg-secondary)]">
+            {comment.author.login}
+          </span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-[10px] text-[var(--color-fg-dim)]">
+            {timeFormat(comment.createdAt)}
+          </span>
+          <button
+            type="button"
+            onClick={() => setCollapsed(!collapsed)}
+            className="p-1 rounded-sm cursor-pointer text-[var(--color-fg-dim)] hover:text-[var(--color-fg-secondary)] transition-colors"
+            title={collapsed ? "Expand" : "Minimize"}
+          >
+            <Minus className="size-3" />
+          </button>
+        </div>
+      </div>
+      {!collapsed && comment.body && (
+        <div className="px-3 py-3">
+          <MarkdownBody
+            content={comment.body}
+            className="text-[13px] text-[var(--color-fg)] leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_p]:mb-2 [&_ul]:pl-4 [&_ul]:list-disc [&_ol]:pl-4 [&_ol]:list-decimal"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function IssueDetailView({ repo, onSettings }: IssueDetailViewProps) {
   const detail = useIssueDetailStore((s) => s.detail);
   const loading = useIssueDetailStore((s) => s.loading);
   const error = useIssueDetailStore((s) => s.error);
@@ -44,6 +87,7 @@ export function IssueDetailView({ repo }: IssueDetailViewProps) {
   const removeLabels = useIssueDetailStore((s) => s.removeLabels);
   const closeIssueAction = useIssueDetailStore((s) => s.closeIssueAction);
   const reopenIssueAction = useIssueDetailStore((s) => s.reopenIssueAction);
+  const refresh = useIssueDetailStore((s) => s.refresh);
 
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState("");
@@ -141,6 +185,22 @@ export function IssueDetailView({ repo }: IssueDetailViewProps) {
             {detail.number}
           </span>
           <div className="flex-1" />
+          <button
+            type="button"
+            onClick={() => refresh(repo)}
+            className="p-1 rounded-md cursor-pointer text-[var(--color-fg-dim)] hover:text-[var(--color-fg-secondary)] transition-colors"
+            aria-label="Refresh"
+          >
+            <RefreshCw className="size-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={onSettings}
+            className="p-1 rounded-md cursor-pointer text-[var(--color-fg-dim)] hover:text-[var(--color-fg-secondary)] transition-colors"
+            aria-label="Settings"
+          >
+            <SettingsIcon className="size-3.5" />
+          </button>
           <button
             type="button"
             onClick={() => window.api.openExternal(detail.url)}
@@ -308,27 +368,7 @@ export function IssueDetailView({ repo }: IssueDetailViewProps) {
 
         {/* Comments */}
         {(detail.comments ?? []).map((c) => (
-          <div
-            key={c.id}
-            className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-raised)]"
-          >
-            <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--color-border)]">
-              <span className="text-[11px] font-medium text-[var(--color-fg-secondary)]">
-                {c.author.login}
-              </span>
-              <span className="text-[10px] text-[var(--color-fg-dim)]">
-                {timeFormat(c.createdAt)}
-              </span>
-            </div>
-            {c.body && (
-              <div className="px-3 py-3">
-                <MarkdownBody
-                  content={c.body}
-                  className="text-[13px] text-[var(--color-fg)] leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_p]:mb-2 [&_ul]:pl-4 [&_ul]:list-disc [&_ol]:pl-4 [&_ol]:list-decimal"
-                />
-              </div>
-            )}
-          </div>
+          <IssueCommentCard key={c.id} comment={c} />
         ))}
       </div>
 

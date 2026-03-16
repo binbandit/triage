@@ -204,6 +204,7 @@ export interface TriageAPI {
   getPR: (options: { repo?: string; number: number }) => Promise<PullRequestDetail>;
   getPRDiff: (options: { repo: string; number: number }) => Promise<string>;
   getPRFiles: (options: { repo: string; number: number }) => Promise<PRFile[]>;
+  getCommitFiles: (options: { repo: string; sha: string }) => Promise<PRFile[]>;
   closePR: (options: { repo: string; number: number; comment?: string }) => Promise<ActionResult>;
   mergePR: (options: { repo: string; number: number; comment?: string }) => Promise<ActionResult>;
   commentPR: (options: { repo: string; number: number; body: string }) => Promise<ActionResult>;

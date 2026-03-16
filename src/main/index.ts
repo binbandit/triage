@@ -140,6 +140,18 @@ ipcMain.handle("gh:pr-files", async (_event, options: { repo: string; number: nu
   ]);
 });
 
+// ── IPC: Commit Files with patches ───────────────────
+
+ipcMain.handle("gh:commit-files", async (_event, options: { repo: string; sha: string }) => {
+  const { repo, sha } = options;
+  return execGh([
+    "api",
+    `repos/${repo}/commits/${sha}`,
+    "--jq",
+    "[.files[] | {path: .filename, additions: .additions, deletions: .deletions, changeType: (.status | ascii_upcase), patch: .patch}]",
+  ]);
+});
+
 // ── IPC: Config ──────────────────────────────────────
 
 ipcMain.handle("gh:fetch-config", async (_event, options: { repo: string; path?: string }) => {

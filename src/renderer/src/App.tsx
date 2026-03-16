@@ -54,6 +54,7 @@ function ViewToggleButton({
 function AppHeader({ showSettings }: { showSettings: () => void }) {
   const repo = useSettingsStore((s) => s.repo);
   const viewMode = useSettingsStore((s) => s.viewMode);
+  const inlinePRView = useSettingsStore((s) => s.inlinePRView);
   const setRepo = useSettingsStore((s) => s.setRepo);
   const setViewMode = useSettingsStore((s) => s.setViewMode);
 
@@ -63,6 +64,13 @@ function AppHeader({ showSettings }: { showSettings: () => void }) {
   const prs = usePRStore((s) => s.prs);
   const fetchPRs = usePRStore((s) => s.fetchPRs);
   const fetchConfig = useConfigStore((s) => s.fetchConfig);
+
+  const activePR = usePRDetailStore((s) => s.activePR);
+  const activeIssue = useIssueDetailStore((s) => s.activeIssue);
+  const refreshPRDetail = usePRDetailStore((s) => s.refresh);
+  const refreshIssueDetail = useIssueDetailStore((s) => s.refresh);
+
+  const isDetailView = inlinePRView && (activePR !== null || activeIssue !== null);
 
   const filteredCount = useMemo(() => {
     const viewPRs = viewMode === "kanban" ? prs : prs.filter((pr) => pr.state === "OPEN");
@@ -79,7 +87,11 @@ function AppHeader({ showSettings }: { showSettings: () => void }) {
   };
 
   const handleRefresh = () => {
-    if (repo) {
+    if (!repo) return;
+    if (isDetailView) {
+      if (activePR) refreshPRDetail(repo);
+      if (activeIssue) refreshIssueDetail(repo);
+    } else {
       fetchPRs(repo);
       fetchConfig(repo);
     }
@@ -88,16 +100,17 @@ function AppHeader({ showSettings }: { showSettings: () => void }) {
   return (
     <header className="shrink-0 border-b border-[var(--color-border-strong)] no-drag">
       <div className="flex items-center gap-2 px-4 py-2.5">
-        <RepoInput repo={repo} onSubmit={handleRepoSubmit} />
+        {!isDetailView && <RepoInput repo={repo} onSubmit={handleRepoSubmit} />}
+        {isDetailView && <div className="flex-1" />}
 
         <div className="flex items-center gap-0.5 shrink-0">
-          {repo && (
+          {!isDetailView && repo && (
             <span className="text-[11px] text-[var(--color-fg-dim)] font-mono tabular-nums mr-1.5">
               {loading ? <Loader2 className="size-3 animate-spin" /> : filteredCount}
             </span>
           )}
 
-          {repo && (
+          {!isDetailView && repo && (
             <div className="flex items-center rounded-md border border-[var(--color-border)] mr-1">
               <ViewToggleButton
                 active={viewMode === "list"}
@@ -119,7 +132,7 @@ function AppHeader({ showSettings }: { showSettings: () => void }) {
           <button
             type="button"
             onClick={handleRefresh}
-            disabled={loading || !repo}
+            disabled={!repo}
             className="
               p-1.5 rounded-md cursor-pointer
               text-[var(--color-fg-dim)]
@@ -129,7 +142,7 @@ function AppHeader({ showSettings }: { showSettings: () => void }) {
             "
             aria-label="Refresh"
           >
-            <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw className="size-3.5" />
           </button>
           <button
             type="button"
@@ -147,7 +160,7 @@ function AppHeader({ showSettings }: { showSettings: () => void }) {
         </div>
       </div>
 
-      {repo && (
+      {!isDetailView && repo && (
         <div className="px-4 pb-2.5">
           <SearchBar value={search} onChange={setSearch} />
         </div>
@@ -158,7 +171,7 @@ function AppHeader({ showSettings }: { showSettings: () => void }) {
 
 /* ── Content ──────────────────────────────────────── */
 
-function AppContent() {
+function AppContent({ onSettings }: { onSettings: () => void }) {
   const repo = useSettingsStore((s) => s.repo);
   const viewMode = useSettingsStore((s) => s.viewMode);
   const inlinePRView = useSettingsStore((s) => s.inlinePRView);
@@ -204,7 +217,7 @@ function AppContent() {
   if (inlinePRView && activePR && repo) {
     return (
       <main className="flex-1 overflow-hidden">
-        <PRDetailView repo={repo} />
+        <PRDetailView repo={repo} onSettings={onSettings} />
       </main>
     );
   }
@@ -212,7 +225,7 @@ function AppContent() {
   if (inlinePRView && activeIssue && repo) {
     return (
       <main className="flex-1 overflow-hidden">
-        <IssueDetailView repo={repo} />
+        <IssueDetailView repo={repo} onSettings={onSettings} />
       </main>
     );
   }
@@ -273,12 +286,16 @@ function AppContent() {
 
 export default function App() {
   const [showSettings, setShowSettings] = useState(false);
+  const inlinePRView = useSettingsStore((s) => s.inlinePRView);
+  const activePR = usePRDetailStore((s) => s.activePR);
+  const activeIssue = useIssueDetailStore((s) => s.activeIssue);
+  const isDetailView = inlinePRView && (activePR !== null || activeIssue !== null);
 
   return (
     <div className="flex flex-col h-screen bg-[var(--color-bg)] text-[var(--color-fg)]">
       <div className="drag-region h-7 shrink-0" />
-      <AppHeader showSettings={() => setShowSettings(true)} />
-      <AppContent />
+      {!isDetailView && <AppHeader showSettings={() => setShowSettings(true)} />}
+      <AppContent onSettings={() => setShowSettings(true)} />
       {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
     </div>
   );

@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Check, AlertTriangle, MessageSquare, Pencil, Loader2, Reply } from "lucide-react";
+import { Check, AlertTriangle, MessageSquare, Pencil, Loader2, Reply, Minus } from "lucide-react";
 import type { PullRequestDetail } from "../../types";
 import { MarkdownBody } from "./MarkdownBody";
 import { MentionInput } from "./MentionInput";
@@ -50,6 +50,75 @@ function ReviewBadge({ state }: { state: string }) {
   );
 }
 
+type TimelineItem =
+  | { type: "comment"; id: string; author: string; body: string; date: string }
+  | { type: "review"; id: string; author: string; body: string; state: string; date: string };
+
+function TimelineCard({
+  item,
+  prUrl,
+  repo,
+  onReply,
+}: {
+  item: TimelineItem;
+  prUrl: string;
+  repo: string;
+  onReply: (author: string) => void;
+}) {
+  const [collapsed, setCollapsed] = useState(false);
+
+  return (
+    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-raised)]">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--color-border)]">
+        <div className="flex items-center gap-2">
+          <Avatar login={item.author} size={18} />
+          <span className="text-[11px] font-medium text-[var(--color-fg-secondary)]">
+            {item.author}
+          </span>
+          {item.type === "review" && (
+            <ReviewBadge state={(item as TimelineItem & { state: string }).state} />
+          )}
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-[10px] text-[var(--color-fg-dim)]">{timeFormat(item.date)}</span>
+          <button
+            type="button"
+            onClick={() => onReply(item.author)}
+            className="p-1 rounded-sm cursor-pointer text-[var(--color-fg-dim)] hover:text-[var(--color-fg-secondary)] transition-colors"
+            title={`Reply to ${item.author}`}
+          >
+            <Reply className="size-3" />
+          </button>
+          {item.type === "comment" && (
+            <CommentActions
+              commentId={item.id}
+              commentUrl={`${prUrl}#issuecomment-${item.id}`}
+              repo={repo}
+              type="pr"
+            />
+          )}
+          <button
+            type="button"
+            onClick={() => setCollapsed(!collapsed)}
+            className="p-1 rounded-sm cursor-pointer text-[var(--color-fg-dim)] hover:text-[var(--color-fg-secondary)] transition-colors"
+            title={collapsed ? "Expand" : "Minimize"}
+          >
+            <Minus className="size-3" />
+          </button>
+        </div>
+      </div>
+      {!collapsed && item.body && (
+        <div className="px-3 py-3">
+          <MarkdownBody
+            content={item.body}
+            className="text-[13px] text-[var(--color-fg)] leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_p]:mb-2 [&_ul]:pl-4 [&_ul]:list-disc [&_ol]:pl-4 [&_ol]:list-decimal"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ConversationTab({ pr, repo, onComment, onEditBody }: ConversationTabProps) {
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -68,10 +137,6 @@ export function ConversationTab({ pr, repo, onComment, onEditBody }: Conversatio
   }, [pr.author.login, pr.comments, pr.reviews]);
 
   // Build unified timeline
-  type TimelineItem =
-    | { type: "comment"; id: string; author: string; body: string; date: string }
-    | { type: "review"; id: string; author: string; body: string; state: string; date: string };
-
   const timeline: TimelineItem[] = [];
 
   for (const c of pr.comments ?? []) {
@@ -199,59 +264,19 @@ export function ConversationTab({ pr, repo, onComment, onEditBody }: Conversatio
           </div>
         </div>
 
-        {/* CI Checks */}
-        {(pr.statusCheckRollup?.length ?? 0) > 0 && <ChecksSection checks={pr.statusCheckRollup} />}
-
         {/* Timeline */}
         {timeline.map((item, i) => (
-          <div
+          <TimelineCard
             key={`${item.type}-${item.date}-${i}`}
-            className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-raised)]"
-          >
-            <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--color-border)]">
-              <div className="flex items-center gap-2">
-                <Avatar login={item.author} size={18} />
-                <span className="text-[11px] font-medium text-[var(--color-fg-secondary)]">
-                  {item.author}
-                </span>
-                {item.type === "review" && (
-                  <ReviewBadge state={(item as TimelineItem & { state: string }).state} />
-                )}
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-[10px] text-[var(--color-fg-dim)]">
-                  {timeFormat(item.date)}
-                </span>
-                {/* Reply button */}
-                <button
-                  type="button"
-                  onClick={() => handleReply(item.author)}
-                  className="p-1 rounded-sm cursor-pointer text-[var(--color-fg-dim)] hover:text-[var(--color-fg-secondary)] transition-colors"
-                  title={`Reply to ${item.author}`}
-                >
-                  <Reply className="size-3" />
-                </button>
-                {/* Actions (reactions, copy link) */}
-                {item.type === "comment" && (
-                  <CommentActions
-                    commentId={item.id}
-                    commentUrl={`${pr.url}#issuecomment-${item.id}`}
-                    repo={repo}
-                    type="pr"
-                  />
-                )}
-              </div>
-            </div>
-            {item.body && (
-              <div className="px-3 py-3">
-                <MarkdownBody
-                  content={item.body}
-                  className="text-[13px] text-[var(--color-fg)] leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_p]:mb-2 [&_ul]:pl-4 [&_ul]:list-disc [&_ol]:pl-4 [&_ol]:list-decimal"
-                />
-              </div>
-            )}
-          </div>
+            item={item}
+            prUrl={pr.url}
+            repo={repo}
+            onReply={handleReply}
+          />
         ))}
+
+        {/* CI Checks - always at the bottom */}
+        {(pr.statusCheckRollup?.length ?? 0) > 0 && <ChecksSection checks={pr.statusCheckRollup} />}
       </div>
 
       {/* Comment input */}

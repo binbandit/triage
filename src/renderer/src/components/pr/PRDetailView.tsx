@@ -8,6 +8,7 @@ import { ReviewPanel } from "./ReviewPanel";
 
 interface PRDetailViewProps {
   repo: string;
+  onSettings: () => void;
 }
 
 const TAB_CONFIG = [
@@ -16,7 +17,7 @@ const TAB_CONFIG = [
   { id: "changes" as const, label: "Changes", icon: FileCode },
 ];
 
-export function PRDetailView({ repo }: PRDetailViewProps) {
+export function PRDetailView({ repo, onSettings }: PRDetailViewProps) {
   const detail = usePRDetailStore((s) => s.detail);
   const filesWithPatch = usePRDetailStore((s) => s.filesWithPatch);
   const loading = usePRDetailStore((s) => s.loading);
@@ -33,6 +34,7 @@ export function PRDetailView({ repo }: PRDetailViewProps) {
   const removeLabels = usePRDetailStore((s) => s.removeLabels);
   const submitReview = usePRDetailStore((s) => s.submitReview);
   const toggleDraft = usePRDetailStore((s) => s.toggleDraft);
+  const refresh = usePRDetailStore((s) => s.refresh);
 
   // Loading state
   if (loading) {
@@ -77,6 +79,8 @@ export function PRDetailView({ repo }: PRDetailViewProps) {
         onAddLabel={(label) => addLabels(repo, [label])}
         onRemoveLabel={(label) => removeLabels(repo, [label])}
         onToggleDraft={() => toggleDraft(repo)}
+        onRefresh={() => refresh(repo)}
+        onSettings={onSettings}
       />
 
       {/* Tab bar + review */}

@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.invoke("gh:pr-diff", options),
   getPRFiles: (options: { repo: string; number: number }) =>
     ipcRenderer.invoke("gh:pr-files", options),
+  getCommitFiles: (options: { repo: string; sha: string }) =>
+    ipcRenderer.invoke("gh:commit-files", options),
 
   // Auth & accounts
   authAccounts: () => ipcRenderer.invoke("gh:auth-accounts"),
