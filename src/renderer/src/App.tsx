@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Settings as SettingsIcon, RefreshCw, List, Columns3 } from "lucide-react";
+import { Settings as SettingsIcon, RefreshCw, List, Columns3, Loader2 } from "lucide-react";
 import { useSettingsStore } from "./stores/settingsStore";
 import { usePRStore } from "./stores/prStore";
 import { useConfigStore } from "./stores/configStore";
@@ -89,7 +89,7 @@ function AppHeader({ showSettings }: { showSettings: () => void }) {
         <div className="flex items-center gap-0.5 shrink-0">
           {repo && (
             <span className="text-[11px] text-[var(--color-fg-dim)] font-mono tabular-nums mr-1.5">
-              {loading ? "..." : filteredCount}
+              {loading ? <Loader2 className="size-3 animate-spin" /> : filteredCount}
             </span>
           )}
 
@@ -205,16 +205,7 @@ function AppContent() {
         <EmptyState type="empty" message="No PRs match your filter." />
       )}
 
-      {hasResults && viewMode === "kanban" && (
-        <KanbanView
-          prs={filtered}
-          repo={repo}
-          onRefresh={() => {
-            fetchPRs(repo);
-            fetchConfig(repo);
-          }}
-        />
-      )}
+      {hasResults && viewMode === "kanban" && <KanbanView prs={filtered} repo={repo} />}
 
       {hasResults && viewMode === "list" && hasGroups && (
         <div className="h-full overflow-y-auto">

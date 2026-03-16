@@ -1,5 +1,6 @@
 import { X, Moon, Sun } from "lucide-react";
 import { useSettingsStore } from "../stores/settingsStore";
+import { Switch } from "./ui/Switch";
 
 interface SettingsPanelProps {
   onClose: () => void;
@@ -82,23 +83,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 View PR details, diffs, and conversations without leaving the app.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => setInlinePRView(!inlinePRView)}
-              className={`
-                relative shrink-0 w-9 h-5 rounded-full cursor-pointer transition-colors
-                ${inlinePRView ? "bg-[var(--color-blue)]" : "bg-[var(--color-fg-dim)]"}
-              `}
-              role="switch"
-              aria-checked={inlinePRView}
-            >
-              <span
-                className={`
-                  absolute top-0.5 size-4 rounded-full bg-white transition-transform
-                  ${inlinePRView ? "translate-x-[18px]" : "translate-x-0.5"}
-                `}
-              />
-            </button>
+            <Switch checked={inlinePRView} onCheckedChange={setInlinePRView} />
           </div>
         </div>
 

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { X, GitMerge, XCircle } from "lucide-react";
+import { X, GitMerge, XCircle, Loader2 } from "lucide-react";
 import type { PullRequest } from "../types";
 
 export type DialogAction = "close" | "merge";
@@ -119,7 +119,7 @@ export function CommentDialog({
               }
             `}
           >
-            {loading ? "..." : actionLabel}
+            {loading ? <Loader2 className="size-3.5 animate-spin" /> : actionLabel}
           </button>
         </div>
       </div>

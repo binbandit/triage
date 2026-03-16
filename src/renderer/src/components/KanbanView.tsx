@@ -1,6 +1,7 @@
 import { useState, type DragEvent } from "react";
 import { GitPullRequest, XCircle, GitMerge, X } from "lucide-react";
 import type { PullRequest } from "../types";
+import { usePRStore } from "../stores/prStore";
 import { KanbanCard } from "./KanbanCard";
 import { CommentDialog, type DialogAction } from "./CommentDialog";
 import { classifyActionError } from "../lib/errorUtils";
@@ -8,7 +9,6 @@ import { classifyActionError } from "../lib/errorUtils";
 interface KanbanViewProps {
   prs: PullRequest[];
   repo: string;
-  onRefresh: () => void;
 }
 
 type ColumnId = "open" | "closed" | "merged";
@@ -50,7 +50,7 @@ function handleDragStart(e: DragEvent, pr: PullRequest): void {
   e.dataTransfer.effectAllowed = "move";
 }
 
-export function KanbanView({ prs, repo, onRefresh }: KanbanViewProps) {
+export function KanbanView({ prs, repo }: KanbanViewProps) {
   const [dragOverColumn, setDragOverColumn] = useState<ColumnId | null>(null);
   const [pendingAction, setPendingAction] = useState<{
     pr: PullRequest;
@@ -58,6 +58,7 @@ export function KanbanView({ prs, repo, onRefresh }: KanbanViewProps) {
   } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const updatePRState = usePRStore((s) => s.updatePRState);
 
   // Bucket PRs into columns by state
   const openPRs = prs.filter((pr) => pr.state === "OPEN");
@@ -105,11 +106,12 @@ export function KanbanView({ prs, repo, onRefresh }: KanbanViewProps) {
       const { pr, action } = pendingAction;
       if (action === "merge") {
         await window.api.mergePR({ repo, number: pr.number, comment });
+        updatePRState(pr.number, "MERGED", new Date().toISOString());
       } else {
         await window.api.closePR({ repo, number: pr.number, comment });
+        updatePRState(pr.number, "CLOSED");
       }
       setPendingAction(null);
-      onRefresh();
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       const action = pendingAction.action === "merge" ? "merge" : "close";

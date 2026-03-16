@@ -90,13 +90,14 @@ describe("CommentDialog", () => {
         loading
       />,
     );
-    expect(screen.getByText("...")).toBeInTheDocument();
     // Cancel and action buttons should be disabled
     const buttons = screen.getAllByRole("button");
     const cancelBtn = buttons.find((b) => b.textContent === "Cancel");
-    const actionBtn = buttons.find((b) => b.textContent === "...");
     expect(cancelBtn).toBeDisabled();
-    expect(actionBtn).toBeDisabled();
+    // The action button should show a spinner (svg) and be disabled
+    const actionBtns = buttons.filter((b) => b.querySelector("svg.animate-spin"));
+    expect(actionBtns.length).toBeGreaterThanOrEqual(1);
+    expect(actionBtns[0]).toBeDisabled();
   });
 
   it("shows merge placeholder text for merge action", () => {

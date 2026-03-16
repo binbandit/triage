@@ -12,6 +12,8 @@ interface PRStore {
   fetchPRs: (repo: string) => Promise<void>;
   fetchClosedPRs: (repo: string) => Promise<void>;
   refresh: (repo: string) => Promise<void>;
+  /** Optimistically update a PR's state in the local store */
+  updatePRState: (number: number, state: string, mergedAt?: string) => void;
 }
 
 export const usePRStore = create<PRStore>((set, get) => ({
@@ -60,5 +62,13 @@ export const usePRStore = create<PRStore>((set, get) => ({
     const store = get();
     set({ closedFetchedRepo: "" });
     await store.fetchPRs(repo);
+  },
+
+  updatePRState: (number, state, mergedAt) => {
+    set((prev) => ({
+      prs: prev.prs.map((pr) =>
+        pr.number === number ? { ...pr, state, ...(mergedAt ? { mergedAt } : {}) } : pr,
+      ),
+    }));
   },
 }));
