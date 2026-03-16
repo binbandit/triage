@@ -1,59 +1,70 @@
-import { GitPullRequest, AlertCircle, Loader2, ShieldX, Lock } from "lucide-react";
+import { GitPullRequest, AlertCircle, Loader2, Lock } from "lucide-react";
 
 export type EmptyStateType = "loading" | "empty" | "error" | "no-repo" | "forbidden" | "not-found";
 
 interface EmptyStateProps {
   type: EmptyStateType;
   message?: string;
+  /** Compact mode for use inside constrained containers like kanban columns */
+  compact?: boolean;
 }
 
-export function EmptyState({ type, message }: EmptyStateProps) {
+export function EmptyState({ type, message, compact = false }: EmptyStateProps) {
+  const py = compact ? "py-10 px-4" : "py-24 px-6";
+  const icon = compact ? "size-4 mb-3" : "size-5 mb-4";
+  const title = compact ? "text-[12px]" : "text-[13px]";
+  const body = compact ? "text-[11px]" : "text-[12px]";
+
   return (
-    <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
+    <div className={`flex flex-col items-center justify-center ${py} text-center`}>
       {type === "loading" && (
         <>
-          <Loader2 className="size-5 text-[var(--color-fg-dim)] animate-spin mb-4" />
-          <p className="text-[13px] text-[var(--color-fg-muted)]">Fetching pull requests...</p>
+          <Loader2 className={`${icon} text-[var(--color-fg-dim)] animate-spin`} />
+          <p className={`${body} text-[var(--color-fg-muted)]`}>
+            {message || "Fetching pull requests..."}
+          </p>
         </>
       )}
       {type === "empty" && (
         <>
-          <GitPullRequest className="size-5 text-[var(--color-fg-dim)] mb-4" />
-          <p className="text-[13px] text-[var(--color-fg-secondary)] font-medium mb-1">
-            No pull requests
+          <GitPullRequest className={`${icon} text-[var(--color-fg-dim)]`} />
+          <p className={`${title} text-[var(--color-fg-secondary)] font-medium mb-1`}>
+            {compact ? message || "None yet" : "No pull requests"}
           </p>
-          <p className="text-[12px] text-[var(--color-fg-muted)]">
-            {message || "No open PRs found for this repository."}
-          </p>
+          {!compact && (
+            <p className={`${body} text-[var(--color-fg-muted)]`}>
+              {message || "No open PRs found for this repository."}
+            </p>
+          )}
         </>
       )}
       {type === "error" && (
         <>
-          <AlertCircle className="size-5 text-[var(--color-red)]/60 mb-4" />
-          <p className="text-[13px] text-[var(--color-fg-secondary)] font-medium mb-1">
+          <AlertCircle className={`${icon} text-[var(--color-red)]/60`} />
+          <p className={`${title} text-[var(--color-fg-secondary)] font-medium mb-1`}>
             Something went wrong
           </p>
-          <p className="text-[12px] text-[var(--color-fg-muted)] max-w-xs">{message}</p>
+          <p className={`${body} text-[var(--color-fg-muted)] max-w-xs`}>{message}</p>
         </>
       )}
       {type === "not-found" && (
         <>
-          <AlertCircle className="size-5 text-[var(--color-amber)]/60 mb-4" />
-          <p className="text-[13px] text-[var(--color-fg-secondary)] font-medium mb-1">
+          <AlertCircle className={`${icon} text-[var(--color-amber)]/60`} />
+          <p className={`${title} text-[var(--color-fg-secondary)] font-medium mb-1`}>
             Repository not found
           </p>
-          <p className="text-[12px] text-[var(--color-fg-muted)] max-w-xs">
+          <p className={`${body} text-[var(--color-fg-muted)] max-w-xs`}>
             {message || "Check the owner/repo name and try again."}
           </p>
         </>
       )}
       {type === "forbidden" && (
         <>
-          <Lock className="size-5 text-[var(--color-amber)]/60 mb-4" />
-          <p className="text-[13px] text-[var(--color-fg-secondary)] font-medium mb-1">
+          <Lock className={`${icon} text-[var(--color-amber)]/60`} />
+          <p className={`${title} text-[var(--color-fg-secondary)] font-medium mb-1`}>
             Access denied
           </p>
-          <p className="text-[12px] text-[var(--color-fg-muted)] max-w-xs">
+          <p className={`${body} text-[var(--color-fg-muted)] max-w-xs`}>
             {message ||
               "You don't have permission to access this repository. Check that you're authenticated with `gh auth login`."}
           </p>
@@ -61,11 +72,11 @@ export function EmptyState({ type, message }: EmptyStateProps) {
       )}
       {type === "no-repo" && (
         <>
-          <GitPullRequest className="size-5 text-[var(--color-fg-dim)] mb-4" />
-          <p className="text-[13px] text-[var(--color-fg-secondary)] font-medium mb-1">
+          <GitPullRequest className={`${icon} text-[var(--color-fg-dim)]`} />
+          <p className={`${title} text-[var(--color-fg-secondary)] font-medium mb-1`}>
             Enter a repository
           </p>
-          <p className="text-[12px] text-[var(--color-fg-muted)]">
+          <p className={`${body} text-[var(--color-fg-muted)]`}>
             Type owner/repo above to start triaging pull requests.
           </p>
         </>

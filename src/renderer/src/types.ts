@@ -261,8 +261,12 @@ export interface TriageAPI {
     reaction: string;
   }) => Promise<ActionResult>;
 
-  // Shared
+  // Auth
+  authAccounts: () => Promise<AuthAccount[]>;
+  authSwitch: (options: { hostname: string; user: string }) => Promise<ActionResult>;
   authStatus: () => Promise<AuthStatus>;
+
+  // Shared
   currentRepo: () => Promise<RepoInfo | null>;
   fetchConfig: (options: { repo: string; path?: string }) => Promise<ConfigFetchResult>;
   repoLabels: (options: { repo: string }) => Promise<RepoLabel[] | string>;

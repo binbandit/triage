@@ -1,6 +1,8 @@
-import { X, Moon, Sun } from "lucide-react";
+import { useState, useEffect } from "react";
+import { X, Moon, Sun, Check, Loader2 } from "lucide-react";
 import { useSettingsStore } from "../stores/settingsStore";
 import { Switch } from "./ui/Switch";
+import type { AuthAccount } from "../types";
 
 interface SettingsPanelProps {
   onClose: () => void;
@@ -11,6 +13,36 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const inlinePRView = useSettingsStore((s) => s.inlinePRView);
   const setTheme = useSettingsStore((s) => s.setTheme);
   const setInlinePRView = useSettingsStore((s) => s.setInlinePRView);
+
+  const [accounts, setAccounts] = useState<AuthAccount[]>([]);
+  const [accountsLoading, setAccountsLoading] = useState(true);
+  const [switching, setSwitching] = useState<string | null>(null);
+
+  useEffect(() => {
+    window.api
+      .authAccounts()
+      .then((result) => setAccounts(Array.isArray(result) ? result : []))
+      .catch(() => setAccounts([]))
+      .finally(() => setAccountsLoading(false));
+  }, []);
+
+  const handleSwitch = async (account: AuthAccount) => {
+    if (account.active || switching) return;
+    setSwitching(account.login);
+    try {
+      await window.api.authSwitch({ hostname: account.host, user: account.login });
+      setAccounts((prev) =>
+        prev.map((a) => ({
+          ...a,
+          active: a.login === account.login && a.host === account.host,
+        })),
+      );
+    } catch {
+      // Silent fail
+    } finally {
+      setSwitching(null);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -29,8 +61,64 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
           </button>
         </div>
 
+        {/* Account switcher */}
+        <div className="mb-5">
+          <p className="text-[12px] font-medium text-[var(--color-fg-secondary)] mb-2.5">Account</p>
+          {accountsLoading ? (
+            <div className="flex items-center justify-center py-3">
+              <Loader2 className="size-3.5 animate-spin text-[var(--color-fg-dim)]" />
+            </div>
+          ) : accounts.length === 0 ? (
+            <p className="text-[11px] text-[var(--color-fg-dim)]">
+              No accounts found. Run{" "}
+              <code className="font-mono bg-[var(--color-bg-overlay)] px-1 py-px rounded">
+                gh auth login
+              </code>{" "}
+              to authenticate.
+            </p>
+          ) : (
+            <div className="space-y-1">
+              {accounts.map((account) => (
+                <button
+                  key={`${account.host}-${account.login}`}
+                  type="button"
+                  onClick={() => handleSwitch(account)}
+                  disabled={account.active || switching !== null}
+                  className={`
+                    w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors
+                    ${
+                      account.active
+                        ? "bg-[var(--color-blue)]/5 border border-[var(--color-blue)]/20 cursor-default"
+                        : "border border-[var(--color-border)] cursor-pointer hover:bg-[var(--color-bg-overlay)] disabled:opacity-50 disabled:cursor-not-allowed"
+                    }
+                  `}
+                >
+                  <img
+                    src={account.avatarUrl}
+                    alt=""
+                    className="size-8 rounded-full shrink-0 bg-[var(--color-bg-overlay)]"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[12px] font-medium text-[var(--color-fg)] truncate">
+                      {account.login}
+                    </p>
+                    <p className="text-[10px] text-[var(--color-fg-dim)] truncate">
+                      {account.host}
+                    </p>
+                  </div>
+                  {switching === account.login ? (
+                    <Loader2 className="size-3.5 animate-spin text-[var(--color-fg-dim)] shrink-0" />
+                  ) : account.active ? (
+                    <Check className="size-3.5 text-[var(--color-blue)] shrink-0" />
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Theme */}
-        <div>
+        <div className="pt-4 border-t border-[var(--color-border)]">
           <p className="text-[12px] font-medium text-[var(--color-fg-secondary)] mb-2.5">
             Appearance
           </p>

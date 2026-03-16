@@ -4,6 +4,7 @@ import type { PullRequest } from "../types";
 import { usePRStore } from "../stores/prStore";
 import { KanbanCard } from "./KanbanCard";
 import { CommentDialog, type DialogAction } from "./CommentDialog";
+import { EmptyState } from "./EmptyState";
 import { classifyActionError } from "../lib/errorUtils";
 
 interface KanbanViewProps {
@@ -185,15 +186,17 @@ export function KanbanView({ prs, repo }: KanbanViewProps) {
                   }
                 `}
               >
-                {items.length === 0 && loadingClosed && col.id !== "open" && (
-                  <li className="list-none flex flex-col items-center justify-center py-12 gap-2">
-                    <Loader2 className="size-4 animate-spin text-[var(--color-fg-dim)]" />
-                    <span className="text-[11px] text-[var(--color-fg-dim)]">Loading...</span>
-                  </li>
-                )}
-                {items.length === 0 && !(loadingClosed && col.id !== "open") && (
-                  <li className="list-none flex items-center justify-center py-12 text-[11px] text-[var(--color-fg-dim)]">
-                    {col.emptyText}
+                {items.length === 0 && (
+                  <li className="list-none">
+                    {loadingClosed && col.id !== "open" ? (
+                      <EmptyState
+                        type="loading"
+                        message={`Loading ${col.label.toLowerCase()} PRs...`}
+                        compact
+                      />
+                    ) : (
+                      <EmptyState type="empty" message={col.emptyText} compact />
+                    )}
                   </li>
                 )}
                 {items.map((pr) => (
