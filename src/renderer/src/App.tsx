@@ -31,6 +31,7 @@ import { EmptyState } from "./components/EmptyState";
 import { SavedViewsBar } from "./components/SavedViewsBar";
 import { BulkActionBar } from "./components/BulkActionBar";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
+import { CommandPalette } from "./components/CommandPalette";
 import { useSavedViewsStore } from "./stores/savedViewsStore";
 import { computePRIndicators } from "./lib/prIndicators";
 import type { KanbanContent } from "./types";
@@ -447,6 +448,7 @@ function AppContent({
 export default function App() {
   useKeyboardShortcuts();
   const [showSettings, setShowSettings] = useState(false);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [kanbanContent, setKanbanContent] = useState<KanbanContent>("prs");
   const inlinePRView = useSettingsStore((s) => s.inlinePRView);
   const interceptGitHubLinks = useSettingsStore((s) => s.interceptGitHubLinks);
@@ -454,6 +456,18 @@ export default function App() {
   const activeIssue = useIssueDetailStore((s) => s.activeIssue);
   const canShowDetail = inlinePRView || interceptGitHubLinks;
   const isDetailView = canShowDetail && (activePR !== null || activeIssue !== null);
+
+  // Cmd+K to open command palette
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setShowCommandPalette((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   return (
     <div className="flex flex-col h-screen bg-[var(--color-bg)] text-[var(--color-fg)]">
@@ -467,6 +481,11 @@ export default function App() {
       )}
       <AppContent onSettings={() => setShowSettings(true)} kanbanContent={kanbanContent} />
       {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
+      <CommandPalette
+        open={showCommandPalette}
+        onClose={() => setShowCommandPalette(false)}
+        onOpenSettings={() => setShowSettings(true)}
+      />
     </div>
   );
 }
