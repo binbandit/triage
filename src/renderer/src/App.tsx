@@ -313,8 +313,11 @@ function AppContent({
         <EmptyState type="empty" message="No PRs match your filter." />
       )}
 
-      {/* Kanban PR view - always render, cards handle their own empty states */}
-      {isKanbanPRs && !error && <KanbanView prs={filtered} repo={repo} />}
+      {/* Kanban PR view */}
+      {isKanbanPRs && !error && loading && prs.length === 0 && <EmptyState type="loading" />}
+      {isKanbanPRs && !error && !(loading && prs.length === 0) && (
+        <KanbanView prs={filtered} repo={repo} />
+      )}
 
       {/* Kanban issues view */}
       {isKanbanIssues && !error && (

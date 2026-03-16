@@ -13,7 +13,6 @@ interface PRStore {
   fetchPRs: (repo: string) => Promise<void>;
   fetchClosedPRs: (repo: string) => Promise<void>;
   refresh: (repo: string) => Promise<void>;
-  /** Optimistically update a PR's state in the local store */
   updatePRState: (number: number, state: string, mergedAt?: string) => void;
 }
 
@@ -29,10 +28,21 @@ export const usePRStore = create<PRStore>((set, get) => ({
 
   fetchPRs: async (repo) => {
     if (!repo) return;
-    set({ loading: true, error: null, closedFetchedRepo: "" });
+    set({ loading: true, error: null });
     try {
       const result = await window.api.listPRs({ state: "open", limit: 1000, repo });
-      set({ prs: Array.isArray(result) ? result : [], loading: false });
+      const openPRs = Array.isArray(result) ? result : [];
+
+      set((state) => {
+        // Keep existing closed/merged PRs, replace open ones
+        const closedAndMerged = state.prs.filter(
+          (pr) => pr.state === "CLOSED" || pr.state === "MERGED" || pr.mergedAt,
+        );
+        const openNumbers = new Set(openPRs.map((p: PullRequest) => p.number));
+        // Remove any closed/merged that are now open again (reopened)
+        const keptClosed = closedAndMerged.filter((pr) => !openNumbers.has(pr.number));
+        return { prs: [...openPRs, ...keptClosed], loading: false };
+      });
     } catch (err) {
       set({
         error: err instanceof Error ? err.message : "Failed to fetch pull requests",
@@ -63,9 +73,8 @@ export const usePRStore = create<PRStore>((set, get) => ({
   },
 
   refresh: async (repo) => {
-    const store = get();
     set({ closedFetchedRepo: "" });
-    await store.fetchPRs(repo);
+    await get().fetchPRs(repo);
   },
 
   updatePRState: (number, state, mergedAt) => {

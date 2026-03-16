@@ -138,4 +138,40 @@ describe("usePRStore", () => {
 
     expect(window.api.listPRs).not.toHaveBeenCalled();
   });
+
+  it("fetchPRs preserves closed/merged PRs", async () => {
+    // Pre-populate with closed and merged PRs
+    usePRStore.setState({
+      prs: [
+        { number: 1, state: "OPEN" } as never,
+        { number: 2, state: "CLOSED" } as never,
+        { number: 3, state: "MERGED", mergedAt: "2024-01-01" } as never,
+      ],
+    });
+
+    // fetchPRs returns only open PRs
+    window.api.listPRs = vi.fn().mockResolvedValue([
+      { number: 1, state: "OPEN" },
+      { number: 4, state: "OPEN" },
+    ]);
+
+    await act(async () => {
+      await usePRStore.getState().fetchPRs("test/repo");
+    });
+
+    const prs = usePRStore.getState().prs;
+    expect(prs).toHaveLength(4);
+    expect(prs.map((p) => p.number).sort()).toEqual([1, 2, 3, 4]);
+  });
+
+  it("fetchPRs does not reset closedFetchedRepo", async () => {
+    usePRStore.setState({ closedFetchedRepo: "test/repo" });
+    window.api.listPRs = vi.fn().mockResolvedValue([]);
+
+    await act(async () => {
+      await usePRStore.getState().fetchPRs("test/repo");
+    });
+
+    expect(usePRStore.getState().closedFetchedRepo).toBe("test/repo");
+  });
 });
