@@ -13,12 +13,55 @@ export interface PRAuthor {
 
 export interface PRReview {
   author: { login: string };
-  state: "APPROVED" | "CHANGES_REQUESTED" | "COMMENTED" | "DISMISSED";
+  authorAssociation?: string;
+  body: string;
+  state: "APPROVED" | "CHANGES_REQUESTED" | "COMMENTED" | "DISMISSED" | "PENDING";
   submittedAt: string;
 }
 
 export interface PRReviewRequest {
   login: string;
+}
+
+export interface PRComment {
+  id: string;
+  author: { login: string };
+  authorAssociation?: string;
+  body: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface PRCommit {
+  authoredDate: string;
+  committedDate: string;
+  messageBody: string;
+  messageHeadline: string;
+  oid: string;
+  authors: { login: string; name: string; email: string }[];
+}
+
+export interface PRFile {
+  path: string;
+  additions: number;
+  deletions: number;
+  changeType: "ADDED" | "MODIFIED" | "DELETED" | "RENAMED" | "COPIED";
+}
+
+export interface PRCheckRun {
+  __typename: string;
+  name: string;
+  status: string;
+  conclusion: string;
+  startedAt?: string;
+  completedAt?: string;
+  detailsUrl?: string;
+  workflowName?: string;
+}
+
+export interface PRAssignee {
+  login: string;
+  name?: string;
 }
 
 export interface PullRequest {
@@ -35,30 +78,37 @@ export interface PullRequest {
   isDraft: boolean;
   closedAt?: string;
   mergedAt?: string;
+  mergedBy?: { login: string };
   reviewDecision?: string;
   latestReviews?: PRReview[];
   reviewRequests?: PRReviewRequest[];
 }
 
+/** Extended PR data returned by gh:get-pr with full detail fields. */
+export interface PullRequestDetail extends PullRequest {
+  baseRefName: string;
+  additions: number;
+  deletions: number;
+  changedFiles: number;
+  comments: PRComment[];
+  commits: PRCommit[];
+  files: PRFile[];
+  reviews: PRReview[];
+  assignees: PRAssignee[];
+  statusCheckRollup: PRCheckRun[];
+  mergeable: string;
+  mergeStateStatus: string;
+}
+
 export type MatchMode = "all" | "any";
 export type SortField = "updated" | "created" | "title";
 
-/**
- * Review-based conditions for group matching.
- * All specified conditions must be met (AND logic).
- */
 export interface ReviewConditions {
-  /** Minimum number of approvals required */
   min_approvals?: number;
-  /** Maximum number of approvals (e.g. 0 = "has no approvals") */
   max_approvals?: number;
-  /** Whether changes have been requested (true = must have, false = must not have) */
   changes_requested?: boolean;
-  /** reviewDecision matches one of these values */
   review_decision?: string[];
-  /** Minimum number of pending review requests */
   min_reviewers?: number;
-  /** Maximum number of pending review requests (e.g. 0 = "no reviewers assigned") */
   max_reviewers?: number;
 }
 
@@ -85,6 +135,7 @@ export interface Settings {
   repo: string;
   theme: Theme;
   viewMode: ViewMode;
+  inlinePRView: boolean;
 }
 
 export interface AuthStatus {
@@ -107,15 +158,48 @@ export interface ActionResult {
   success: boolean;
 }
 
+export type ReviewEvent = "APPROVE" | "REQUEST_CHANGES" | "COMMENT";
+
+export interface GitHubUser {
+  login: string;
+  avatar_url?: string;
+}
+
 export interface TriageAPI {
   listPRs: (options: { repo?: string; state?: string; limit?: number }) => Promise<PullRequest[]>;
-  getPR: (options: { repo?: string; number: number }) => Promise<PullRequest>;
+  getPR: (options: { repo?: string; number: number }) => Promise<PullRequestDetail>;
+  getPRDiff: (options: { repo: string; number: number }) => Promise<string>;
   authStatus: () => Promise<AuthStatus>;
   currentRepo: () => Promise<RepoInfo | null>;
   fetchConfig: (options: { repo: string; path?: string }) => Promise<ConfigFetchResult>;
   closePR: (options: { repo: string; number: number; comment?: string }) => Promise<ActionResult>;
   mergePR: (options: { repo: string; number: number; comment?: string }) => Promise<ActionResult>;
   commentPR: (options: { repo: string; number: number; body: string }) => Promise<ActionResult>;
+  editPR: (options: {
+    repo: string;
+    number: number;
+    title?: string;
+    body?: string;
+    addLabels?: string[];
+    removeLabels?: string[];
+  }) => Promise<ActionResult>;
+  submitReview: (options: {
+    repo: string;
+    number: number;
+    event: ReviewEvent;
+    body?: string;
+  }) => Promise<ActionResult>;
+  reviewComment: (options: {
+    repo: string;
+    number: number;
+    body: string;
+    path: string;
+    line: number;
+    startLine?: number;
+    side?: string;
+  }) => Promise<ActionResult>;
+  repoLabels: (options: { repo: string }) => Promise<string[] | string>;
+  searchUsers: (options: { query: string }) => Promise<GitHubUser[]>;
   openExternal: (url: string) => Promise<void>;
 }
 

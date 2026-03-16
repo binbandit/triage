@@ -16,5 +16,5 @@
       "version": "19"
     }
   },
-  "ignorePatterns": ["out", "dist", "node_modules", "better-hub"]
+  "ignorePatterns": ["out", "dist", "node_modules"]
 }

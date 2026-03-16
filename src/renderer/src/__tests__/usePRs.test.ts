@@ -1,16 +1,48 @@
-import { describe, it, expect, vi } from "vitest";
-import { renderHook, act } from "@testing-library/react";
-import { usePRs } from "../hooks/usePRs";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { act } from "@testing-library/react";
+import { usePRStore } from "../stores/prStore";
 
-describe("usePRs", () => {
+beforeEach(() => {
+  usePRStore.setState({
+    prs: [],
+    loading: false,
+    error: null,
+    search: "",
+    closedFetchedRepo: "",
+  });
+});
+
+describe("usePRStore", () => {
   it("starts with empty state", () => {
-    const { result } = renderHook(() => usePRs());
-    expect(result.current.prs).toEqual([]);
-    expect(result.current.loading).toBe(false);
-    expect(result.current.error).toBeNull();
+    const state = usePRStore.getState();
+    expect(state.prs).toEqual([]);
+    expect(state.loading).toBe(false);
+    expect(state.error).toBeNull();
+    expect(state.search).toBe("");
   });
 
-  it("sets loading state during fetch", async () => {
+  it("setSearch updates search", () => {
+    act(() => usePRStore.getState().setSearch("query"));
+    expect(usePRStore.getState().search).toBe("query");
+  });
+
+  it("fetchPRs stores fetched PRs", async () => {
+    const mockPRs = [
+      { number: 1, title: "PR 1" },
+      { number: 2, title: "PR 2" },
+    ];
+    window.api.listPRs = vi.fn().mockResolvedValue(mockPRs);
+
+    await act(async () => {
+      await usePRStore.getState().fetchPRs("test/repo");
+    });
+
+    expect(usePRStore.getState().prs).toEqual(mockPRs);
+    expect(usePRStore.getState().error).toBeNull();
+    expect(usePRStore.getState().loading).toBe(false);
+  });
+
+  it("fetchPRs sets loading state", async () => {
     let resolvePromise: (value: unknown[]) => void;
     window.api.listPRs = vi.fn(
       () =>
@@ -19,122 +51,90 @@ describe("usePRs", () => {
         }),
     );
 
-    const { result } = renderHook(() => usePRs());
-
     let fetchPromise: Promise<void>;
     act(() => {
-      fetchPromise = result.current.fetchPRs("test/repo");
+      fetchPromise = usePRStore.getState().fetchPRs("test/repo");
     });
 
-    expect(result.current.loading).toBe(true);
+    expect(usePRStore.getState().loading).toBe(true);
 
     await act(async () => {
       resolvePromise!([]);
       await fetchPromise!;
     });
 
-    expect(result.current.loading).toBe(false);
+    expect(usePRStore.getState().loading).toBe(false);
   });
 
-  it("stores fetched PRs", async () => {
-    const mockPRs = [
-      { number: 1, title: "PR 1" },
-      { number: 2, title: "PR 2" },
-    ];
-    window.api.listPRs = vi.fn().mockResolvedValue(mockPRs);
-
-    const { result } = renderHook(() => usePRs());
-
-    await act(async () => {
-      await result.current.fetchPRs("test/repo");
-    });
-
-    expect(result.current.prs).toEqual(mockPRs);
-    expect(result.current.error).toBeNull();
-  });
-
-  it("handles errors gracefully", async () => {
+  it("fetchPRs handles errors", async () => {
     window.api.listPRs = vi.fn().mockRejectedValue(new Error("Network error"));
 
-    const { result } = renderHook(() => usePRs());
-
     await act(async () => {
-      await result.current.fetchPRs("test/repo");
+      await usePRStore.getState().fetchPRs("test/repo");
     });
 
-    expect(result.current.prs).toEqual([]);
-    expect(result.current.error).toBe("Network error");
-    expect(result.current.loading).toBe(false);
+    expect(usePRStore.getState().prs).toEqual([]);
+    expect(usePRStore.getState().error).toBe("Network error");
+    expect(usePRStore.getState().loading).toBe(false);
   });
 
-  it("handles non-Error rejections", async () => {
-    window.api.listPRs = vi.fn().mockRejectedValue("string error");
-
-    const { result } = renderHook(() => usePRs());
-
-    await act(async () => {
-      await result.current.fetchPRs("test/repo");
-    });
-
-    expect(result.current.error).toBe("Failed to fetch pull requests");
-  });
-
-  it("passes repo to API call", async () => {
+  it("fetchPRs passes repo and state=open", async () => {
     window.api.listPRs = vi.fn().mockResolvedValue([]);
 
-    const { result } = renderHook(() => usePRs());
-
     await act(async () => {
-      await result.current.fetchPRs("my/repo");
+      await usePRStore.getState().fetchPRs("my/repo");
     });
 
     expect(window.api.listPRs).toHaveBeenCalledWith({
-      state: "all",
+      state: "open",
       limit: 1000,
       repo: "my/repo",
     });
   });
 
-  it("calls API without repo when none provided", async () => {
-    window.api.listPRs = vi.fn().mockResolvedValue([]);
-
-    const { result } = renderHook(() => usePRs());
-
-    await act(async () => {
-      await result.current.fetchPRs();
-    });
-
-    expect(window.api.listPRs).toHaveBeenCalledWith({
-      state: "all",
-      limit: 1000,
-    });
-  });
-
-  it("handles non-array response", async () => {
+  it("fetchPRs handles non-array response", async () => {
     window.api.listPRs = vi.fn().mockResolvedValue("not an array");
 
-    const { result } = renderHook(() => usePRs());
-
     await act(async () => {
-      await result.current.fetchPRs("test/repo");
+      await usePRStore.getState().fetchPRs("test/repo");
     });
 
-    expect(result.current.prs).toEqual([]);
+    expect(usePRStore.getState().prs).toEqual([]);
   });
 
-  it("clears error on successful fetch after failure", async () => {
-    window.api.listPRs = vi.fn().mockRejectedValueOnce(new Error("fail")).mockResolvedValueOnce([]);
-
-    const { result } = renderHook(() => usePRs());
-
-    await act(async () => {
-      await result.current.fetchPRs("test/repo");
-    });
-    expect(result.current.error).toBe("fail");
+  it("fetchClosedPRs merges with existing PRs", async () => {
+    usePRStore.setState({ prs: [{ number: 1, state: "OPEN" } as never] });
+    window.api.listPRs = vi.fn().mockResolvedValue([
+      { number: 2, state: "CLOSED" },
+      { number: 1, state: "OPEN" },
+    ]);
 
     await act(async () => {
-      await result.current.fetchPRs("test/repo");
+      await usePRStore.getState().fetchClosedPRs("test/repo");
     });
-    expect(result.current.error).toBeNull();
+
+    expect(usePRStore.getState().prs).toHaveLength(2);
+    expect(usePRStore.getState().prs.map((p) => p.number)).toEqual([1, 2]);
+  });
+
+  it("fetchClosedPRs skips if already fetched for same repo", async () => {
+    window.api.listPRs = vi.fn().mockResolvedValue([]);
+    usePRStore.setState({ closedFetchedRepo: "test/repo" });
+
+    await act(async () => {
+      await usePRStore.getState().fetchClosedPRs("test/repo");
+    });
+
+    expect(window.api.listPRs).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when repo is empty", async () => {
+    window.api.listPRs = vi.fn().mockResolvedValue([]);
+
+    await act(async () => {
+      await usePRStore.getState().fetchPRs("");
+    });
+
+    expect(window.api.listPRs).not.toHaveBeenCalled();
   });
 });
