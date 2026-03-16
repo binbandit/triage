@@ -4,6 +4,7 @@ import { useSettingsStore } from "./stores/settingsStore";
 import { usePRStore } from "./stores/prStore";
 import { useConfigStore } from "./stores/configStore";
 import { usePRDetailStore } from "./stores/prDetailStore";
+import { useIssueDetailStore } from "./stores/issueDetailStore";
 import { filterPRs, groupPRs } from "./lib/prHelpers";
 import { classifyError } from "./lib/errorUtils";
 import { RepoInput } from "./components/RepoInput";
@@ -12,6 +13,7 @@ import { PRRow } from "./components/PRRow";
 import { GroupSection } from "./components/GroupSection";
 import { KanbanView } from "./components/KanbanView";
 import { PRDetailView } from "./components/pr/PRDetailView";
+import { IssueDetailView } from "./components/pr/IssueDetailView";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { EmptyState } from "./components/EmptyState";
 
@@ -169,6 +171,7 @@ function AppContent() {
   const fetchClosedPRs = usePRStore((s) => s.fetchClosedPRs);
   const fetchConfig = useConfigStore((s) => s.fetchConfig);
   const activePR = usePRDetailStore((s) => s.activePR);
+  const activeIssue = useIssueDetailStore((s) => s.activeIssue);
   const config = useConfigStore((s) => s.config);
 
   const openPRs = useMemo(() => prs.filter((pr) => pr.state === "OPEN"), [prs]);
@@ -197,11 +200,19 @@ function AppContent() {
     }
   }, [repo, fetchPRs, fetchConfig]);
 
-  // Show PR detail view if inline view is enabled and a PR is selected
+  // Show detail views if inline view is enabled
   if (inlinePRView && activePR && repo) {
     return (
       <main className="flex-1 overflow-hidden">
         <PRDetailView repo={repo} />
+      </main>
+    );
+  }
+
+  if (inlinePRView && activeIssue && repo) {
+    return (
+      <main className="flex-1 overflow-hidden">
+        <IssueDetailView repo={repo} />
       </main>
     );
   }

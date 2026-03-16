@@ -15,6 +15,7 @@ import {
 import type { PullRequest } from "../types";
 import { useSettingsStore } from "../stores/settingsStore";
 import { usePRDetailStore } from "../stores/prDetailStore";
+import { useIssueDetailStore } from "../stores/issueDetailStore";
 import { LabelBadge } from "./LabelBadge";
 import { countApprovals, hasChangesRequested, countReviewers } from "../lib/prHelpers";
 import { parseLinkedIssues } from "../lib/parseIssues";
@@ -91,6 +92,7 @@ export function PRRow({ pr, repo, highlightLabels = [] }: PRRowProps) {
   const [expanded, setExpanded] = useState(false);
   const inlinePRView = useSettingsStore((s) => s.inlinePRView);
   const openPR = usePRDetailStore((s) => s.openPR);
+  const openIssue = useIssueDetailStore((s) => s.openIssue);
 
   const linkedIssues = useMemo(() => parseLinkedIssues(pr.body), [pr.body]);
   const hasIssues = linkedIssues.length > 0;
@@ -104,8 +106,12 @@ export function PRRow({ pr, repo, highlightLabels = [] }: PRRowProps) {
   };
 
   const handleIssueClick = (issueNumber: number) => {
-    const repoBase = repo ? `https://github.com/${repo}` : pr.url.replace(/\/pull\/\d+$/, "");
-    window.api.openExternal(`${repoBase}/issues/${issueNumber}`);
+    if (inlinePRView && repo) {
+      openIssue(repo, issueNumber);
+    } else {
+      const repoBase = repo ? `https://github.com/${repo}` : pr.url.replace(/\/pull\/\d+$/, "");
+      window.api.openExternal(`${repoBase}/issues/${issueNumber}`);
+    }
   };
 
   return (
