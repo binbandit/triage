@@ -6,8 +6,7 @@ beforeEach(() => {
   usePRDetailStore.setState({
     activePR: null,
     detail: null,
-    diff: [],
-    rawDiff: "",
+    filesWithPatch: [],
     loading: false,
     error: null,
     tab: "conversation",
@@ -40,7 +39,7 @@ describe("usePRDetailStore", () => {
 
   it("openPR sets activePR and loading", async () => {
     window.api.getPR = vi.fn().mockResolvedValue({ number: 1, title: "Test" });
-    window.api.getPRDiff = vi.fn().mockResolvedValue("");
+    window.api.getPRFiles = vi.fn().mockResolvedValue([]);
 
     let openPromise: Promise<void>;
     act(() => {
@@ -60,7 +59,7 @@ describe("usePRDetailStore", () => {
 
   it("openPR handles errors", async () => {
     window.api.getPR = vi.fn().mockRejectedValue(new Error("Not found"));
-    window.api.getPRDiff = vi.fn().mockResolvedValue("");
+    window.api.getPRFiles = vi.fn().mockResolvedValue([]);
 
     await act(async () => {
       await usePRDetailStore.getState().openPR("test/repo", 1);
@@ -74,7 +73,7 @@ describe("usePRDetailStore", () => {
     usePRDetailStore.setState({ activePR: 1, detail: { number: 1 } as never });
     window.api.commentPR = vi.fn().mockResolvedValue({ success: true });
     window.api.getPR = vi.fn().mockResolvedValue({ number: 1 });
-    window.api.getPRDiff = vi.fn().mockResolvedValue("");
+    window.api.getPRFiles = vi.fn().mockResolvedValue([]);
 
     await act(async () => {
       const result = await usePRDetailStore.getState().addComment("test/repo", "hello");
@@ -126,7 +125,7 @@ describe("usePRDetailStore", () => {
     usePRDetailStore.setState({ activePR: 1, detail: { number: 1 } as never });
     window.api.submitReview = vi.fn().mockResolvedValue({ success: true });
     window.api.getPR = vi.fn().mockResolvedValue({ number: 1 });
-    window.api.getPRDiff = vi.fn().mockResolvedValue("");
+    window.api.getPRFiles = vi.fn().mockResolvedValue([]);
 
     await act(async () => {
       const result = await usePRDetailStore.getState().submitReview("test/repo", "APPROVE", "LGTM");

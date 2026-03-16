@@ -127,6 +127,19 @@ ipcMain.handle("gh:pr-diff", async (_event, options: { repo: string; number: num
   return execGh(args);
 });
 
+// ── IPC: PR Files with patches ───────────────────────
+
+ipcMain.handle("gh:pr-files", async (_event, options: { repo: string; number: number }) => {
+  const { repo, number } = options;
+  return execGh([
+    "api",
+    `repos/${repo}/pulls/${number}/files`,
+    "--paginate",
+    "--jq",
+    "[.[] | {path: .filename, additions: .additions, deletions: .deletions, changeType: (.status | ascii_upcase), patch: .patch}]",
+  ]);
+});
+
 // ── IPC: Config ──────────────────────────────────────
 
 ipcMain.handle("gh:fetch-config", async (_event, options: { repo: string; path?: string }) => {

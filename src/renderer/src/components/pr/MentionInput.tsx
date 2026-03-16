@@ -167,6 +167,7 @@ export function MentionInput({
     <div className="relative">
       <textarea
         ref={textareaRef}
+        data-comment-input
         value={value}
         onChange={(e) => handleChange(e.target.value)}
         onKeyDown={handleKeyDown}
@@ -183,9 +184,9 @@ export function MentionInput({
           ${className}
         `}
       />
-      {/* Suggestions dropdown */}
+      {/* Suggestions dropdown - opens upward to avoid going off-screen */}
       {showSuggestions && suggestions.length > 0 && (
-        <div className="absolute left-0 right-0 z-50 mt-1 rounded-lg border border-[var(--color-border-strong)] bg-[var(--color-bg-raised)] shadow-xl overflow-hidden">
+        <div className="absolute left-0 right-0 z-50 bottom-full mb-1 rounded-lg border border-[var(--color-border-strong)] bg-[var(--color-bg-raised)] shadow-xl overflow-hidden max-h-48 overflow-y-auto">
           {suggestions.map((user, i) => (
             <button
               key={user.login}

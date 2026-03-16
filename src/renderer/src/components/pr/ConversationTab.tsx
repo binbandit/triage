@@ -1,9 +1,11 @@
 import { useState, useMemo } from "react";
-import { Check, AlertTriangle, MessageSquare, Pencil, Loader2 } from "lucide-react";
+import { Check, AlertTriangle, MessageSquare, Pencil, Loader2, Reply } from "lucide-react";
 import type { PullRequestDetail } from "../../types";
 import { MarkdownBody } from "./MarkdownBody";
 import { MentionInput } from "./MentionInput";
 import { CommentActions } from "./CommentActions";
+import { ChecksSection } from "./ChecksSection";
+import { Avatar } from "../ui/Avatar";
 
 interface ConversationTabProps {
   pr: PullRequestDetail;
@@ -54,6 +56,7 @@ export function ConversationTab({ pr, repo, onComment, onEditBody }: Conversatio
   const [editingBody, setEditingBody] = useState(false);
   const [bodyValue, setBodyValue] = useState(pr.body);
   const [bodySaving, setBodySaving] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
 
   // Extract participants for @mention pre-fill
   const participants = useMemo(() => {
@@ -64,7 +67,7 @@ export function ConversationTab({ pr, repo, onComment, onEditBody }: Conversatio
     return [...set];
   }, [pr.author.login, pr.comments, pr.reviews]);
 
-  // Build a unified timeline from comments and reviews
+  // Build unified timeline
   type TimelineItem =
     | { type: "comment"; id: string; author: string; body: string; date: string }
     | { type: "review"; id: string; author: string; body: string; state: string; date: string };
@@ -99,7 +102,10 @@ export function ConversationTab({ pr, repo, onComment, onEditBody }: Conversatio
     if (!comment.trim()) return;
     setSubmitting(true);
     const success = await onComment(comment.trim());
-    if (success) setComment("");
+    if (success) {
+      setComment("");
+      setReplyingTo(null);
+    }
     setSubmitting(false);
   };
 
@@ -110,15 +116,29 @@ export function ConversationTab({ pr, repo, onComment, onEditBody }: Conversatio
     setEditingBody(false);
   };
 
+  const handleReply = (author: string) => {
+    setReplyingTo(author);
+    setComment(`@${author} `);
+    // Focus the comment input at the bottom
+    const textarea = document.querySelector("textarea[data-comment-input]") as HTMLTextAreaElement;
+    if (textarea) {
+      textarea.focus();
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
         {/* PR body */}
         <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-raised)]">
           <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--color-border)]">
-            <span className="text-[11px] font-medium text-[var(--color-fg-secondary)]">
-              {pr.author.login}
-            </span>
+            <div className="flex items-center gap-2">
+              <Avatar login={pr.author.login} size={18} />
+              <span className="text-[11px] font-medium text-[var(--color-fg-secondary)]">
+                {pr.author.login}
+              </span>
+            </div>
             <div className="flex items-center gap-1">
               <span className="text-[10px] text-[var(--color-fg-dim)]">
                 {timeFormat(pr.createdAt)}
@@ -146,6 +166,7 @@ export function ConversationTab({ pr, repo, onComment, onEditBody }: Conversatio
                   onChange={setBodyValue}
                   rows={8}
                   placeholder="PR description..."
+                  participants={participants}
                 />
                 <div className="flex items-center gap-2 justify-end">
                   <button
@@ -178,6 +199,9 @@ export function ConversationTab({ pr, repo, onComment, onEditBody }: Conversatio
           </div>
         </div>
 
+        {/* CI Checks */}
+        {(pr.statusCheckRollup?.length ?? 0) > 0 && <ChecksSection checks={pr.statusCheckRollup} />}
+
         {/* Timeline */}
         {timeline.map((item, i) => (
           <div
@@ -186,6 +210,7 @@ export function ConversationTab({ pr, repo, onComment, onEditBody }: Conversatio
           >
             <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--color-border)]">
               <div className="flex items-center gap-2">
+                <Avatar login={item.author} size={18} />
                 <span className="text-[11px] font-medium text-[var(--color-fg-secondary)]">
                   {item.author}
                 </span>
@@ -197,6 +222,16 @@ export function ConversationTab({ pr, repo, onComment, onEditBody }: Conversatio
                 <span className="text-[10px] text-[var(--color-fg-dim)]">
                   {timeFormat(item.date)}
                 </span>
+                {/* Reply button */}
+                <button
+                  type="button"
+                  onClick={() => handleReply(item.author)}
+                  className="p-1 rounded-sm cursor-pointer text-[var(--color-fg-dim)] hover:text-[var(--color-fg-secondary)] transition-colors"
+                  title={`Reply to ${item.author}`}
+                >
+                  <Reply className="size-3" />
+                </button>
+                {/* Actions (reactions, copy link) */}
                 {item.type === "comment" && (
                   <CommentActions
                     commentId={item.id}
@@ -222,13 +257,32 @@ export function ConversationTab({ pr, repo, onComment, onEditBody }: Conversatio
       {/* Comment input */}
       {pr.state === "OPEN" && (
         <div className="shrink-0 border-t border-[var(--color-border-strong)] px-5 py-3 bg-[var(--color-bg)]">
+          {replyingTo && (
+            <div className="flex items-center gap-1.5 mb-2">
+              <span className="text-[10px] text-[var(--color-fg-dim)]">Replying to</span>
+              <Avatar login={replyingTo} size={14} />
+              <span className="text-[10px] font-medium text-[var(--color-fg-secondary)]">
+                {replyingTo}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setReplyingTo(null);
+                  setComment("");
+                }}
+                className="text-[10px] text-[var(--color-fg-dim)] cursor-pointer hover:text-[var(--color-fg-secondary)]"
+              >
+                &times; Cancel
+              </button>
+            </div>
+          )}
           <MentionInput
             value={comment}
             onChange={setComment}
             placeholder="Leave a comment... (@ to mention, Cmd+Enter to submit)"
             rows={2}
-            participants={participants}
             onSubmit={handleSubmitComment}
+            participants={participants}
           />
           <div className="flex justify-end mt-2">
             <button

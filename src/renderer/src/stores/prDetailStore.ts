@@ -1,7 +1,5 @@
 import { create } from "zustand";
-import type { PullRequestDetail } from "../types";
-import type { DiffFile } from "../lib/parseDiff";
-import { parseDiff } from "../lib/parseDiff";
+import type { PullRequestDetail, PRFile } from "../types";
 
 type DetailTab = "conversation" | "commits" | "changes";
 
@@ -9,8 +7,7 @@ interface PRDetailStore {
   /** The PR number currently being viewed, or null if list view */
   activePR: number | null;
   detail: PullRequestDetail | null;
-  diff: DiffFile[];
-  rawDiff: string;
+  filesWithPatch: PRFile[];
   loading: boolean;
   error: string | null;
   tab: DetailTab;
@@ -40,8 +37,7 @@ interface PRDetailStore {
 export const usePRDetailStore = create<PRDetailStore>((set, get) => ({
   activePR: null,
   detail: null,
-  diff: [],
-  rawDiff: "",
+  filesWithPatch: [],
   loading: false,
   error: null,
   tab: "conversation",
@@ -54,17 +50,16 @@ export const usePRDetailStore = create<PRDetailStore>((set, get) => ({
       loading: true,
       error: null,
       detail: null,
-      diff: [],
-      rawDiff: "",
+      filesWithPatch: [],
       tab: "conversation",
     });
     try {
-      const [detail, rawDiff] = await Promise.all([
+      const [detail, filesResult] = await Promise.all([
         window.api.getPR({ repo, number }),
-        window.api.getPRDiff({ repo, number }).catch(() => ""),
+        window.api.getPRFiles({ repo, number }).catch(() => []),
       ]);
-      const diff = typeof rawDiff === "string" && rawDiff ? parseDiff(rawDiff) : [];
-      set({ detail, diff, rawDiff: typeof rawDiff === "string" ? rawDiff : "", loading: false });
+      const files = Array.isArray(filesResult) ? filesResult : [];
+      set({ detail, filesWithPatch: files, loading: false });
     } catch (err) {
       set({
         error: err instanceof Error ? err.message : "Failed to load PR",
@@ -74,7 +69,7 @@ export const usePRDetailStore = create<PRDetailStore>((set, get) => ({
   },
 
   closePR: () => {
-    set({ activePR: null, detail: null, diff: [], rawDiff: "", error: null, tab: "conversation" });
+    set({ activePR: null, detail: null, filesWithPatch: [], error: null, tab: "conversation" });
   },
 
   setTab: (tab) => set({ tab }),
@@ -83,12 +78,12 @@ export const usePRDetailStore = create<PRDetailStore>((set, get) => ({
     const { activePR } = get();
     if (!activePR) return;
     try {
-      const [detail, rawDiff] = await Promise.all([
+      const [detail, filesResult] = await Promise.all([
         window.api.getPR({ repo, number: activePR }),
-        window.api.getPRDiff({ repo, number: activePR }).catch(() => ""),
+        window.api.getPRFiles({ repo, number: activePR }).catch(() => []),
       ]);
-      const diff = typeof rawDiff === "string" && rawDiff ? parseDiff(rawDiff) : [];
-      set({ detail, diff, rawDiff: typeof rawDiff === "string" ? rawDiff : "" });
+      const files = Array.isArray(filesResult) ? filesResult : [];
+      set({ detail, filesWithPatch: files });
     } catch {
       // Silent refresh failure
     }

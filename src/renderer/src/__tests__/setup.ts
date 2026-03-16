@@ -23,6 +23,7 @@ const mockApi = {
   listPRs: vi.fn().mockResolvedValue([]),
   getPR: vi.fn().mockResolvedValue(null),
   getPRDiff: vi.fn().mockResolvedValue(""),
+  getPRFiles: vi.fn().mockResolvedValue([]),
   authAccounts: vi.fn().mockResolvedValue([]),
   authSwitch: vi.fn().mockResolvedValue({ success: true }),
   authStatus: vi.fn().mockResolvedValue({ authenticated: true }),
