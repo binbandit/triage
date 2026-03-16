@@ -296,6 +296,9 @@ export interface TriageAPI {
   writeLocalConfig: (options: { content: string }) => Promise<ActionResult & { error?: string }>;
   openLocalConfigDir: () => Promise<void>;
 
+  // User
+  currentUser: () => Promise<GitHubUser | null>;
+
   // Shared
   currentRepo: () => Promise<RepoInfo | null>;
   fetchConfig: (options: { repo: string; path?: string }) => Promise<ConfigFetchResult>;

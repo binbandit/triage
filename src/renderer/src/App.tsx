@@ -28,6 +28,11 @@ import { PRDetailView } from "./components/pr/PRDetailView";
 import { IssueDetailView } from "./components/pr/IssueDetailView";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { EmptyState } from "./components/EmptyState";
+import { SavedViewsBar } from "./components/SavedViewsBar";
+import { BulkActionBar } from "./components/BulkActionBar";
+import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
+import { useSavedViewsStore } from "./stores/savedViewsStore";
+import { computePRIndicators } from "./lib/prIndicators";
 import type { KanbanContent } from "./types";
 
 /* ── View toggle button ───────────────────────────── */
@@ -216,6 +221,8 @@ function AppHeader({
           <SearchBar value={search} onChange={setSearch} />
         </div>
       )}
+      {!isDetailView && repo && viewMode === "list" && <SavedViewsBar />}
+      {!isDetailView && repo && viewMode === "list" && <BulkActionBar />}
     </header>
   );
 }
@@ -270,8 +277,45 @@ function AppContent({
     });
   }, [issues, showClosedIssues]);
 
-  const openPRs = useMemo(() => visiblePRs.filter((pr) => pr.state === "OPEN"), [visiblePRs]);
-  const viewPRs = viewMode === "list" ? openPRs : visiblePRs;
+  // Saved view filtering
+  const activeViewId = useSavedViewsStore((s) => s.activeViewId);
+  const savedViews = useSavedViewsStore((s) => s.views);
+  const currentUser = useSavedViewsStore((s) => s.currentUser);
+  const fetchCurrentUser = useSavedViewsStore((s) => s.fetchCurrentUser);
+
+  useEffect(() => {
+    if (!currentUser) fetchCurrentUser();
+  }, [currentUser, fetchCurrentUser]);
+
+  const activeView = useMemo(
+    () => savedViews.find((v) => v.id === activeViewId),
+    [savedViews, activeViewId],
+  );
+
+  const viewFilteredPRs = useMemo(() => {
+    if (!activeView) return visiblePRs;
+    return visiblePRs.filter((pr) => {
+      if (activeView.states.length > 0 && !activeView.states.includes(pr.state)) return false;
+      if (activeView.reviewRequested && currentUser) {
+        if (!pr.reviewRequests?.some((r) => r.login === currentUser)) return false;
+      }
+      if (activeView.staleOnly) {
+        const ind = computePRIndicators(pr, activeView.staleDays);
+        if (!ind.isStale) return false;
+      }
+      if (activeView.labels.length > 0) {
+        const prLabels = pr.labels.map((l) => l.name.toLowerCase());
+        if (!activeView.labels.every((l) => prLabels.includes(l.toLowerCase()))) return false;
+      }
+      return true;
+    });
+  }, [visiblePRs, activeView, currentUser]);
+
+  const openPRs = useMemo(
+    () => viewFilteredPRs.filter((pr) => pr.state === "OPEN"),
+    [viewFilteredPRs],
+  );
+  const viewPRs = viewMode === "list" ? openPRs : viewFilteredPRs;
   const filtered = useMemo(() => filterPRs(viewPRs, search), [viewPRs, search]);
   const filteredIssues = useMemo(
     () => filterIssues(visibleIssues, search),
@@ -401,6 +445,7 @@ function AppContent({
 /* ── App ──────────────────────────────────────────── */
 
 export default function App() {
+  useKeyboardShortcuts();
   const [showSettings, setShowSettings] = useState(false);
   const [kanbanContent, setKanbanContent] = useState<KanbanContent>("prs");
   const inlinePRView = useSettingsStore((s) => s.inlinePRView);

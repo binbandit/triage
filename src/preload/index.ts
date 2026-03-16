@@ -101,6 +101,9 @@ contextBridge.exposeInMainWorld("api", {
     reaction: string;
   }) => ipcRenderer.invoke("gh:add-reaction", options),
 
+  // User
+  currentUser: () => ipcRenderer.invoke("gh:current-user"),
+
   // Repo data
   repoLabels: (options: { repo: string }) => ipcRenderer.invoke("gh:repo-labels", options),
   searchUsers: (options: { query: string }) => ipcRenderer.invoke("gh:search-users", options),

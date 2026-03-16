@@ -538,6 +538,14 @@ ipcMain.handle("gh:repo-labels", async (_event, options: { repo: string }) => {
 
 // ── IPC: Search Users (@mention) ─────────────────────
 
+ipcMain.handle("gh:current-user", async () => {
+  try {
+    return await execGh(["api", "user", "--jq", "{login: .login, avatar_url: .avatar_url}"]);
+  } catch {
+    return null;
+  }
+});
+
 ipcMain.handle("gh:search-users", async (_event, options: { query: string }) => {
   const { query } = options;
   if (!query || query.length < 2) return [];

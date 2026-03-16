@@ -18,6 +18,8 @@ import { usePRDetailStore } from "../stores/prDetailStore";
 import { useIssueDetailStore } from "../stores/issueDetailStore";
 import { LabelBadge } from "./LabelBadge";
 import { countApprovals, hasChangesRequested, countReviewers } from "../lib/prHelpers";
+import { computePRIndicators, activityColor } from "../lib/prIndicators";
+import { useBulkActionsStore } from "../stores/bulkActionsStore";
 import { parseLinkedIssues } from "../lib/parseIssues";
 
 interface PRRowProps {
@@ -114,10 +116,36 @@ export function PRRow({ pr, repo, highlightLabels = [] }: PRRowProps) {
     }
   };
 
+  const indicators = useMemo(() => computePRIndicators(pr), [pr]);
+  const bulkMode = useBulkActionsStore((s) => s.bulkMode);
+  const selectedPRs = useBulkActionsStore((s) => s.selectedPRs);
+  const togglePR = useBulkActionsStore((s) => s.togglePR);
+  const isSelected = selectedPRs.has(pr.number);
+
   return (
-    <div className="border-b border-[var(--color-border)]">
+    <div
+      className={`border-b border-[var(--color-border)] ${indicators.isStale ? "bg-[var(--color-red)]/[0.02]" : ""}`}
+    >
       {/* Main row */}
       <div className="flex items-start gap-2.5 px-5 py-3.5 hover:bg-[var(--color-bg-raised)] transition-colors duration-100 group">
+        {/* Bulk checkbox */}
+        {bulkMode && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              togglePR(pr.number);
+            }}
+            className="shrink-0 mt-[3px] cursor-pointer"
+          >
+            <div
+              className={`size-3.5 rounded border ${isSelected ? "bg-[var(--color-blue)] border-[var(--color-blue)]" : "border-[var(--color-fg-dim)]"} flex items-center justify-center`}
+            >
+              {isSelected && <Check className="size-2.5 text-white" />}
+            </div>
+          </button>
+        )}
+
         {/* Expand chevron */}
         <button
           type="button"
@@ -181,6 +209,22 @@ export function PRRow({ pr, repo, highlightLabels = [] }: PRRowProps) {
               {pr.headRefName}
             </span>
             <ReviewIndicators pr={pr} />
+            {/* Age + activity */}
+            <span className="text-[var(--color-fg-dim)]">&middot;</span>
+            <span
+              className="text-[10px]"
+              style={{ color: activityColor(indicators.activityLevel) }}
+            >
+              {indicators.ageLabel}
+            </span>
+            {indicators.isStale && (
+              <>
+                <span className="text-[var(--color-fg-dim)]">&middot;</span>
+                <span className="text-[9px] uppercase tracking-wider font-semibold text-[var(--color-red)]">
+                  stale
+                </span>
+              </>
+            )}
           </div>
 
           {/* Labels */}

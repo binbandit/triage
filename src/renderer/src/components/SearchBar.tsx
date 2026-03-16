@@ -11,9 +11,10 @@ export function SearchBar({ value, onChange }: SearchBarProps) {
       <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-[var(--color-fg-muted)]" />
       <input
         type="text"
+        data-search-input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Filter by title, author, or #issue..."
+        placeholder="Filter by title, author, or #issue... (/ to focus)"
         className="
           w-full rounded-lg
           border border-[var(--color-border)] bg-[var(--color-bg-raised)]
