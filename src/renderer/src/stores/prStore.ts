@@ -35,13 +35,22 @@ export const usePRStore = create<PRStore>((set, get) => ({
 
       set((state) => {
         // Keep existing closed/merged PRs, replace open ones
-        const closedAndMerged = state.prs.filter(
-          (pr) => pr.state === "CLOSED" || pr.state === "MERGED" || pr.mergedAt,
-        );
         const openNumbers = new Set(openPRs.map((p: PullRequest) => p.number));
-        // Remove any closed/merged that are now open again (reopened)
-        const keptClosed = closedAndMerged.filter((pr) => !openNumbers.has(pr.number));
-        return { prs: [...openPRs, ...keptClosed], loading: false };
+        const keptClosed = state.prs.filter(
+          (pr) =>
+            (pr.state === "CLOSED" || pr.state === "MERGED" || pr.mergedAt) &&
+            !openNumbers.has(pr.number),
+        );
+        // Deduplicate: use a Set to ensure no PR appears twice
+        const seen = new Set<number>();
+        const merged: PullRequest[] = [];
+        for (const pr of [...openPRs, ...keptClosed]) {
+          if (!seen.has(pr.number)) {
+            seen.add(pr.number);
+            merged.push(pr);
+          }
+        }
+        return { prs: merged, loading: false };
       });
     } catch (err) {
       set({
@@ -60,8 +69,12 @@ export const usePRStore = create<PRStore>((set, get) => ({
       const result = await window.api.listPRs({ state: "closed", limit: 100, repo });
       if (Array.isArray(result)) {
         set((state) => {
-          const existing = new Set(state.prs.map((p) => p.number));
-          const newPRs = result.filter((p: PullRequest) => !existing.has(p.number));
+          const seen = new Set(state.prs.map((p) => p.number));
+          const newPRs = result.filter((p: PullRequest) => {
+            if (seen.has(p.number)) return false;
+            seen.add(p.number);
+            return true;
+          });
           return { prs: [...state.prs, ...newPRs], loadingClosed: false };
         });
       } else {

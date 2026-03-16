@@ -229,6 +229,7 @@ function AppContent({
   const repo = useSettingsStore((s) => s.repo);
   const viewMode = useSettingsStore((s) => s.viewMode);
   const inlinePRView = useSettingsStore((s) => s.inlinePRView);
+  const interceptGitHubLinks = useSettingsStore((s) => s.interceptGitHubLinks);
 
   const prs = usePRStore((s) => s.prs);
   const loading = usePRStore((s) => s.loading);
@@ -280,8 +281,10 @@ function AppContent({
     }
   }, [repo, fetchPRs, fetchConfig]);
 
-  // Show detail views if inline view is enabled
-  if (inlinePRView && activePR && repo) {
+  // Show detail views if inline view or link interception is enabled
+  const canShowDetail = inlinePRView || interceptGitHubLinks;
+
+  if (canShowDetail && activePR && repo) {
     return (
       <main className="flex-1 overflow-hidden">
         <PRDetailView repo={repo} onSettings={onSettings} />
@@ -289,7 +292,7 @@ function AppContent({
     );
   }
 
-  if (inlinePRView && activeIssue && repo) {
+  if (canShowDetail && activeIssue && repo) {
     return (
       <main className="flex-1 overflow-hidden">
         <IssueDetailView repo={repo} onSettings={onSettings} />
@@ -371,9 +374,11 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [kanbanContent, setKanbanContent] = useState<KanbanContent>("prs");
   const inlinePRView = useSettingsStore((s) => s.inlinePRView);
+  const interceptGitHubLinks = useSettingsStore((s) => s.interceptGitHubLinks);
   const activePR = usePRDetailStore((s) => s.activePR);
   const activeIssue = useIssueDetailStore((s) => s.activeIssue);
-  const isDetailView = inlinePRView && (activePR !== null || activeIssue !== null);
+  const canShowDetail = inlinePRView || interceptGitHubLinks;
+  const isDetailView = canShowDetail && (activePR !== null || activeIssue !== null);
 
   return (
     <div className="flex flex-col h-screen bg-[var(--color-bg)] text-[var(--color-fg)]">
