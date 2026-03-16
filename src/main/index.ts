@@ -131,12 +131,12 @@ ipcMain.handle("gh:pr-diff", async (_event, options: { repo: string; number: num
 
 ipcMain.handle("gh:pr-files", async (_event, options: { repo: string; number: number }) => {
   const { repo, number } = options;
+  // Use per_page=100 (max) and paginate manually to avoid JSON concatenation issues
   return execGh([
     "api",
-    `repos/${repo}/pulls/${number}/files`,
-    "--paginate",
+    `repos/${repo}/pulls/${number}/files?per_page=100`,
     "--jq",
-    "[.[] | {path: .filename, additions: .additions, deletions: .deletions, changeType: (.status | ascii_upcase), patch: .patch}]",
+    "[.[] | {path: .filename, additions: .additions, deletions: .deletions, changeType: (.status | ascii_upcase), patch: (.patch // null)}]",
   ]);
 });
 
@@ -148,7 +148,7 @@ ipcMain.handle("gh:commit-files", async (_event, options: { repo: string; sha: s
     "api",
     `repos/${repo}/commits/${sha}`,
     "--jq",
-    "[.files[] | {path: .filename, additions: .additions, deletions: .deletions, changeType: (.status | ascii_upcase), patch: .patch}]",
+    "[(.files // [])[] | {path: .filename, additions: .additions, deletions: .deletions, changeType: (.status | ascii_upcase), patch: (.patch // null)}]",
   ]);
 });
 
