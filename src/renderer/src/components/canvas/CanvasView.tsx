@@ -1,5 +1,15 @@
-import { useEffect, useRef, useCallback, useMemo } from "react";
-import { Plus, Search, X, ZoomIn, ZoomOut, Maximize2, Loader2, Trash2 } from "lucide-react";
+import { useEffect, useRef, useCallback, useMemo, useState } from "react";
+import {
+  Plus,
+  Search,
+  X,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Loader2,
+  Trash2,
+  Palette,
+} from "lucide-react";
 import { useCanvasStore, type CanvasNode, type CanvasZone } from "../../stores/canvasStore";
 import { usePRStore } from "../../stores/prStore";
 import { useIssueStore } from "../../stores/issueStore";
@@ -10,6 +20,17 @@ interface CanvasViewProps {
   repo: string;
 }
 
+const ZONE_COLORS = [
+  "#3b82f6",
+  "#22c55e",
+  "#ef4444",
+  "#f59e0b",
+  "#a855f7",
+  "#ec4899",
+  "#06b6d4",
+  "#64748b",
+];
+
 /* ── Zone component ───────────────────────────────── */
 
 function ZoneRect({ zone, zoom }: { zone: CanvasZone; zoom: number }) {
@@ -17,6 +38,7 @@ function ZoneRect({ zone, zoom }: { zone: CanvasZone; zoom: number }) {
   const resizeZone = useCanvasStore((s) => s.resizeZone);
   const renameZone = useCanvasStore((s) => s.renameZone);
   const deleteZoneAction = useCanvasStore((s) => s.deleteZone);
+  const [showColors, setShowColors] = useState(false);
   const dragRef = useRef<{ startX: number; startY: number; zoneX: number; zoneY: number } | null>(
     null,
   );
@@ -24,15 +46,17 @@ function ZoneRect({ zone, zoom }: { zone: CanvasZone; zoom: number }) {
 
   const handleDragStart = useCallback(
     (e: React.MouseEvent) => {
-      if (e.button !== 0) return;
+      if (e.button !== 0 || (e.target as HTMLElement).tagName === "INPUT") return;
       e.stopPropagation();
       dragRef.current = { startX: e.clientX, startY: e.clientY, zoneX: zone.x, zoneY: zone.y };
 
       const onMove = (ev: MouseEvent) => {
         if (!dragRef.current) return;
-        const dx = (ev.clientX - dragRef.current.startX) / zoom;
-        const dy = (ev.clientY - dragRef.current.startY) / zoom;
-        moveZone(zone.id, dragRef.current.zoneX + dx, dragRef.current.zoneY + dy);
+        moveZone(
+          zone.id,
+          dragRef.current.zoneX + (ev.clientX - dragRef.current.startX) / zoom,
+          dragRef.current.zoneY + (ev.clientY - dragRef.current.startY) / zoom,
+        );
       };
       const onUp = () => {
         dragRef.current = null;
@@ -53,12 +77,10 @@ function ZoneRect({ zone, zoom }: { zone: CanvasZone; zoom: number }) {
 
       const onMove = (ev: MouseEvent) => {
         if (!resizeRef.current) return;
-        const dw = (ev.clientX - resizeRef.current.startX) / zoom;
-        const dh = (ev.clientY - resizeRef.current.startY) / zoom;
         resizeZone(
           zone.id,
-          Math.max(150, resizeRef.current.w + dw),
-          Math.max(100, resizeRef.current.h + dh),
+          Math.max(150, resizeRef.current.w + (ev.clientX - resizeRef.current.startX) / zoom),
+          Math.max(100, resizeRef.current.h + (ev.clientY - resizeRef.current.startY) / zoom),
         );
       };
       const onUp = () => {
@@ -72,50 +94,101 @@ function ZoneRect({ zone, zoom }: { zone: CanvasZone; zoom: number }) {
     [zone.id, zone.width, zone.height, zoom, resizeZone],
   );
 
+  const setZoneColor = useCallback(
+    (color: string) => {
+      useCanvasStore.setState((s) => ({
+        zones: s.zones.map((z) => (z.id === zone.id ? { ...z, color } : z)),
+      }));
+      window.api.canvasUpsertZone({ repo: zone.repo, zone: { ...zone, color } });
+      setShowColors(false);
+    },
+    [zone],
+  );
+
   return (
-    <div
+    <section
+      aria-label={zone.label || "Zone"}
       className="absolute rounded-xl border-2 border-dashed group/zone"
       style={{
         left: zone.x,
         top: zone.y,
         width: zone.width,
         height: zone.height,
-        borderColor: `${zone.color}60`,
+        borderColor: `${zone.color}50`,
         backgroundColor: `${zone.color}08`,
       }}
     >
-      {/* Title bar - draggable */}
+      {/* Title bar - drag handle */}
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
       <div
+        role="toolbar"
         onMouseDown={handleDragStart}
-        className="flex items-center justify-between px-3 py-1.5 cursor-grab active:cursor-grabbing"
+        className="flex items-center gap-1 px-3 py-1.5 cursor-grab active:cursor-grabbing"
       >
+        <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: zone.color }} />
         <input
           type="text"
           value={zone.label}
           onChange={(e) => renameZone(zone.id, e.target.value)}
           onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
-          className="bg-transparent text-[11px] font-semibold uppercase tracking-wider outline-none w-full"
+          className="bg-transparent text-[11px] font-semibold uppercase tracking-wider outline-none flex-1 min-w-0"
           style={{ color: zone.color }}
         />
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            deleteZoneAction(zone.id);
-          }}
-          className="opacity-0 group-hover/zone:opacity-100 p-0.5 cursor-pointer text-[var(--color-fg-dim)] hover:text-[var(--color-red)] transition-all shrink-0"
-        >
-          <Trash2 className="size-3" />
-        </button>
+        <div className="opacity-0 group-hover/zone:opacity-100 flex items-center gap-0.5 transition-opacity">
+          {/* Color picker */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowColors(!showColors);
+              }}
+              className="p-0.5 cursor-pointer text-[var(--color-fg-dim)] hover:text-[var(--color-fg-secondary)]"
+            >
+              <Palette className="size-3" />
+            </button>
+            {showColors && (
+              <div className="absolute left-0 top-full mt-1 z-50 flex gap-1 p-1.5 rounded-lg border border-[var(--color-border-strong)] bg-[var(--color-bg-raised)] shadow-xl">
+                {ZONE_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setZoneColor(c);
+                    }}
+                    className="size-5 rounded-full cursor-pointer hover:scale-110 transition-transform"
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              deleteZoneAction(zone.id);
+            }}
+            className="p-0.5 cursor-pointer text-[var(--color-fg-dim)] hover:text-[var(--color-red)]"
+          >
+            <Trash2 className="size-3" />
+          </button>
+        </div>
       </div>
       {/* Resize handle */}
-      <div
+      <button
+        type="button"
         onMouseDown={handleResizeStart}
         className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize opacity-0 group-hover/zone:opacity-50 transition-opacity"
-        style={{ borderBottom: `2px solid ${zone.color}`, borderRight: `2px solid ${zone.color}` }}
+        aria-label="Resize zone"
+        style={{
+          borderBottom: `2px solid ${zone.color}`,
+          borderRight: `2px solid ${zone.color}`,
+        }}
       />
-    </div>
+    </section>
   );
 }
 
@@ -130,7 +203,10 @@ function ArrowLayer({ nodes }: { nodes: CanvasNode[] }) {
   }, [nodes]);
 
   return (
-    <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible">
+    <svg
+      className="absolute inset-0 w-full h-full pointer-events-none overflow-visible"
+      aria-hidden="true"
+    >
       <defs>
         <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
           <polygon points="0 0, 8 3, 0 6" fill="var(--color-fg-dim)" opacity="0.5" />
@@ -162,6 +238,91 @@ function ArrowLayer({ nodes }: { nodes: CanvasNode[] }) {
   );
 }
 
+/* ── Minimap ──────────────────────────────────────── */
+
+function Minimap({
+  nodes,
+  zones,
+  viewport,
+  containerWidth,
+  containerHeight,
+}: {
+  nodes: CanvasNode[];
+  zones: CanvasZone[];
+  viewport: { panX: number; panY: number; zoom: number };
+  containerWidth: number;
+  containerHeight: number;
+}) {
+  if (nodes.length === 0) return null;
+
+  const allX = [...nodes.map((n) => n.x), ...zones.map((z) => z.x)];
+  const allY = [...nodes.map((n) => n.y), ...zones.map((z) => z.y)];
+  const allMaxX = [...nodes.map((n) => n.x + n.width), ...zones.map((z) => z.x + z.width)];
+  const allMaxY = [...nodes.map((n) => n.y + 100), ...zones.map((z) => z.y + z.height)];
+
+  const minX = Math.min(...allX) - 50;
+  const minY = Math.min(...allY) - 50;
+  const maxX = Math.max(...allMaxX) + 50;
+  const maxY = Math.max(...allMaxY) + 50;
+  const contentW = maxX - minX;
+  const contentH = maxY - minY;
+
+  const mapW = 140;
+  const mapH = 90;
+  const scale = Math.min(mapW / contentW, mapH / contentH);
+
+  // Visible area rectangle
+  const visX = (-viewport.panX / viewport.zoom - minX) * scale;
+  const visY = (-viewport.panY / viewport.zoom - minY) * scale;
+  const visW = (containerWidth / viewport.zoom) * scale;
+  const visH = (containerHeight / viewport.zoom) * scale;
+
+  return (
+    <div className="absolute bottom-3 left-3 z-20 rounded-md border border-[var(--color-border)] bg-[var(--color-bg-raised)]/90 backdrop-blur-sm overflow-hidden">
+      <svg width={mapW} height={mapH} className="block" role="img" aria-label="Canvas minimap">
+        <title>Canvas minimap</title>
+        {/* Zones */}
+        {zones.map((z) => (
+          <rect
+            key={z.id}
+            x={(z.x - minX) * scale}
+            y={(z.y - minY) * scale}
+            width={z.width * scale}
+            height={z.height * scale}
+            fill={`${z.color}20`}
+            stroke={`${z.color}40`}
+            strokeWidth="0.5"
+          />
+        ))}
+        {/* Nodes */}
+        {nodes.map((n) => (
+          <rect
+            key={n.id}
+            x={(n.x - minX) * scale}
+            y={(n.y - minY) * scale}
+            width={Math.max(2, n.width * scale)}
+            height={Math.max(1, 60 * scale)}
+            fill={n.type === "pr" ? "var(--color-green)" : "var(--color-blue)"}
+            opacity="0.6"
+            rx="1"
+          />
+        ))}
+        {/* Viewport rect */}
+        <rect
+          x={Math.max(0, visX)}
+          y={Math.max(0, visY)}
+          width={Math.min(mapW, visW)}
+          height={Math.min(mapH, visH)}
+          fill="none"
+          stroke="var(--color-fg-secondary)"
+          strokeWidth="1"
+          opacity="0.6"
+        />
+      </svg>
+    </div>
+  );
+}
+
 /* ── Canvas View (main) ───────────────────────────── */
 
 export function CanvasView({ repo }: CanvasViewProps) {
@@ -186,6 +347,20 @@ export function CanvasView({ repo }: CanvasViewProps) {
   const panRef = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(
     null,
   );
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Debounced viewport save
+  const debouncedSaveViewport = useCallback(
+    (r: string) => {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = setTimeout(() => saveViewport(r), 300);
+    },
+    [saveViewport],
+  );
+
+  useEffect(() => {
+    return () => clearTimeout(saveTimeoutRef.current);
+  }, []);
 
   // Load issues + canvas on mount
   useEffect(() => {
@@ -200,7 +375,34 @@ export function CanvasView({ repo }: CanvasViewProps) {
     }
   }, [repo, prs, issues, loadCanvas]);
 
-  // Build lookup maps
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        selectNode(null);
+        setSearch("");
+      }
+      if (e.key === "+" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setViewport({ ...viewport, zoom: Math.min(3, viewport.zoom * 1.2) });
+        debouncedSaveViewport(repo);
+      }
+      if (e.key === "-" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setViewport({ ...viewport, zoom: Math.max(0.1, viewport.zoom * 0.8) });
+        debouncedSaveViewport(repo);
+      }
+      if (e.key === "0" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setViewport({ ...viewport, zoom: 1 });
+        debouncedSaveViewport(repo);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [viewport, setViewport, debouncedSaveViewport, selectNode, setSearch, repo]);
+
+  // Lookup maps
   const prMap = useMemo(() => {
     const m = new Map<number, PullRequest>();
     for (const pr of prs) m.set(pr.number, pr);
@@ -213,7 +415,7 @@ export function CanvasView({ repo }: CanvasViewProps) {
     return m;
   }, [issues]);
 
-  // Search highlights
+  // Search
   const highlightedIds = useMemo(() => {
     if (!searchQuery.trim()) return new Set<string>();
     const q = searchQuery.toLowerCase();
@@ -232,7 +434,7 @@ export function CanvasView({ repo }: CanvasViewProps) {
     return ids;
   }, [searchQuery, nodes, prMap, issueMap]);
 
-  // Pan handling
+  // Pan
   const handleCanvasMouseDown = useCallback(
     (e: React.MouseEvent) => {
       if (e.button !== 0) return;
@@ -254,39 +456,54 @@ export function CanvasView({ repo }: CanvasViewProps) {
       };
       const onUp = () => {
         panRef.current = null;
-        saveViewport(repo);
+        debouncedSaveViewport(repo);
         document.removeEventListener("mousemove", onMove);
         document.removeEventListener("mouseup", onUp);
       };
       document.addEventListener("mousemove", onMove);
       document.addEventListener("mouseup", onUp);
     },
-    [viewport, setViewport, saveViewport, selectNode, repo],
+    [viewport, setViewport, debouncedSaveViewport, selectNode, repo],
   );
 
-  // Zoom handling
+  // Zoom
   const handleWheel = useCallback(
     (e: React.WheelEvent) => {
       e.preventDefault();
-      const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      const delta = e.deltaY > 0 ? 0.92 : 1.08;
       const newZoom = Math.max(0.1, Math.min(3, viewport.zoom * delta));
-      setViewport({ ...viewport, zoom: newZoom });
-      saveViewport(repo);
+
+      // Zoom toward cursor position
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (rect) {
+        const cx = e.clientX - rect.left;
+        const cy = e.clientY - rect.top;
+        const newPanX = cx - ((cx - viewport.panX) / viewport.zoom) * newZoom;
+        const newPanY = cy - ((cy - viewport.panY) / viewport.zoom) * newZoom;
+        setViewport({ panX: newPanX, panY: newPanY, zoom: newZoom });
+      } else {
+        setViewport({ ...viewport, zoom: newZoom });
+      }
+      debouncedSaveViewport(repo);
     },
-    [viewport, setViewport, saveViewport, repo],
+    [viewport, setViewport, debouncedSaveViewport, repo],
   );
 
   const zoomTo = (z: number) => {
     setViewport({ ...viewport, zoom: z });
-    saveViewport(repo);
+    debouncedSaveViewport(repo);
   };
 
   const fitToView = () => {
     if (nodes.length === 0) return;
-    const minX = Math.min(...nodes.map((n) => n.x));
-    const minY = Math.min(...nodes.map((n) => n.y));
-    const maxX = Math.max(...nodes.map((n) => n.x + n.width));
-    const maxY = Math.max(...nodes.map((n) => n.y + 100));
+    const allItems = [
+      ...nodes,
+      ...zones.map((z) => ({ x: z.x, y: z.y, width: z.width, height: z.height })),
+    ];
+    const minX = Math.min(...allItems.map((n) => n.x));
+    const minY = Math.min(...allItems.map((n) => n.y));
+    const maxX = Math.max(...allItems.map((n) => n.x + n.width));
+    const maxY = Math.max(...allItems.map((n) => n.y + ("height" in n ? n.height : 100)));
     const container = containerRef.current;
     if (!container) return;
     const cw = container.clientWidth;
@@ -299,8 +516,11 @@ export function CanvasView({ repo }: CanvasViewProps) {
       panY: (ch - contentH * zoom) / 2 - minY * zoom + 60 * zoom,
       zoom,
     });
-    saveViewport(repo);
+    debouncedSaveViewport(repo);
   };
+
+  const containerWidth = containerRef.current?.clientWidth ?? 800;
+  const containerHeight = containerRef.current?.clientHeight ?? 600;
 
   if (loading) {
     return (
@@ -312,9 +532,18 @@ export function CanvasView({ repo }: CanvasViewProps) {
 
   return (
     <div className="relative flex-1 overflow-hidden bg-[var(--color-bg)]" ref={containerRef}>
+      {/* Grid background */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-[0.04]"
+        style={{
+          backgroundImage: "radial-gradient(circle, var(--color-fg) 1px, transparent 1px)",
+          backgroundSize: `${20 * viewport.zoom}px ${20 * viewport.zoom}px`,
+          backgroundPosition: `${viewport.panX % (20 * viewport.zoom)}px ${viewport.panY % (20 * viewport.zoom)}px`,
+        }}
+      />
+
       {/* Toolbar */}
       <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5">
-        {/* Search */}
         <div className="relative">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-3 pointer-events-none text-[var(--color-fg-dim)]" />
           <input
@@ -370,7 +599,7 @@ export function CanvasView({ repo }: CanvasViewProps) {
         </button>
       </div>
 
-      {/* Add zone button */}
+      {/* Add zone */}
       <div className="absolute top-3 right-3 z-20">
         <button
           type="button"
@@ -382,11 +611,23 @@ export function CanvasView({ repo }: CanvasViewProps) {
         </button>
       </div>
 
+      {/* Minimap */}
+      <Minimap
+        nodes={nodes}
+        zones={zones}
+        viewport={viewport}
+        containerWidth={containerWidth}
+        containerHeight={containerHeight}
+      />
+
       {/* Canvas surface */}
       <div
         className="absolute inset-0 cursor-grab active:cursor-grabbing"
         onMouseDown={handleCanvasMouseDown}
         onWheel={handleWheel}
+        role="application"
+        aria-label="Canvas"
+        tabIndex={-1}
       >
         <div
           className="absolute origin-top-left"
@@ -416,10 +657,28 @@ export function CanvasView({ repo }: CanvasViewProps) {
                 data={data}
                 zoom={viewport.zoom}
                 highlighted={highlightedIds.has(node.id)}
+                repo={repo}
               />
             );
           })}
         </div>
+      </div>
+
+      {/* Stats */}
+      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 rounded-md border border-[var(--color-border)] bg-[var(--color-bg-raised)]/90 backdrop-blur-sm px-3 py-1">
+        <span className="text-[10px] text-[var(--color-fg-dim)]">
+          <span className="text-[var(--color-green)]">
+            {nodes.filter((n) => n.type === "pr").length}
+          </span>{" "}
+          PRs
+        </span>
+        <span className="text-[10px] text-[var(--color-fg-dim)]">
+          <span className="text-[var(--color-blue)]">
+            {nodes.filter((n) => n.type === "issue").length}
+          </span>{" "}
+          Issues
+        </span>
+        <span className="text-[10px] text-[var(--color-fg-dim)]">{zones.length} zones</span>
       </div>
     </div>
   );

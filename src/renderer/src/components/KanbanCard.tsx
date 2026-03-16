@@ -5,7 +5,6 @@ import {
   XCircle,
   FileEdit,
   ExternalLink,
-  GripVertical,
   ChevronRight,
   CircleDot,
 } from "lucide-react";
@@ -93,9 +92,6 @@ export function KanbanCard({ pr, repo, onDragStart }: KanbanCardProps) {
             />
           </button>
 
-          {canDrag && (
-            <GripVertical className="size-3.5 shrink-0 mt-0.5 text-[var(--color-fg-dim)] opacity-0 group-hover:opacity-100 transition-opacity" />
-          )}
           <div className="flex-1 min-w-0">
             <div className="flex items-baseline gap-1.5">
               {pr.isDraft && (

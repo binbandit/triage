@@ -102,7 +102,7 @@ describe("KanbanCard", () => {
     expect(window.api.openExternal).toHaveBeenCalledWith("https://github.com/fallback/repo/pull/5");
   });
 
-  it("has fewer SVG icons for non-draggable PRs (no grip handle)", () => {
+  it("renders same number of icons for open and merged cards (no grip handle)", () => {
     const { container: openContainer } = render(
       <KanbanCard pr={makePR({ state: "OPEN" })} repo="test/repo" onDragStart={() => {}} />,
     );
@@ -111,8 +111,8 @@ describe("KanbanCard", () => {
     );
     const openSvgs = openContainer.querySelectorAll("svg").length;
     const mergedSvgs = mergedContainer.querySelectorAll("svg").length;
-    // Merged cards should have one fewer SVG (no GripVertical)
-    expect(mergedSvgs).toBeLessThan(openSvgs);
+    // No grip handle on either, so icon count should be equal
+    expect(mergedSvgs).toBe(openSvgs);
   });
 
   it("renders multiple labels", () => {

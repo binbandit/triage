@@ -94,7 +94,7 @@ function AppHeader({
   const isDetailView = inlinePRView && (activePR !== null || activeIssue !== null);
 
   const filteredCount = useMemo(() => {
-    const viewPRs = viewMode === "kanban" ? prs : prs.filter((pr) => pr.state === "OPEN");
+    const viewPRs = viewMode === "list" ? prs.filter((pr) => pr.state === "OPEN") : prs;
     return filterPRs(viewPRs, search).length;
   }, [prs, search, viewMode]);
 
@@ -245,7 +245,7 @@ function AppContent({
   const fetchIssues = useIssueStore((s) => s.fetchIssues);
 
   const openPRs = useMemo(() => prs.filter((pr) => pr.state === "OPEN"), [prs]);
-  const viewPRs = viewMode === "kanban" ? prs : openPRs;
+  const viewPRs = viewMode === "list" ? openPRs : prs;
   const filtered = useMemo(() => filterPRs(viewPRs, search), [viewPRs, search]);
   const filteredIssues = useMemo(() => filterIssues(issues, search), [issues, search]);
 
@@ -253,7 +253,9 @@ function AppContent({
   const { grouped, ungrouped } = useMemo(() => groupPRs(filtered, groups), [filtered, groups]);
 
   const hasGroups = groups.length > 0;
-  const hasResults = filtered.length > 0;
+  const isListView = viewMode === "list";
+  const isKanbanPRs = viewMode === "kanban" && kanbanContent === "prs";
+  const isKanbanIssues = viewMode === "kanban" && kanbanContent === "issues";
   const classifiedError = error ? classifyError(error) : null;
 
   // Lazy-load closed PRs when switching to kanban
@@ -298,25 +300,31 @@ function AppContent({
   return (
     <main className="flex-1 overflow-hidden">
       {!repo && <EmptyState type="no-repo" />}
-      {repo && loading && prs.length === 0 && <EmptyState type="loading" />}
+
+      {/* Error state - applies to all views */}
       {repo && classifiedError && (
         <EmptyState type={classifiedError.type} message={classifiedError.message} />
       )}
-      {repo && !loading && !error && prs.length === 0 && <EmptyState type="empty" />}
-      {repo && !error && !hasResults && prs.length > 0 && (
+
+      {/* List view empty states */}
+      {repo && !error && isListView && loading && prs.length === 0 && <EmptyState type="loading" />}
+      {repo && !error && isListView && !loading && prs.length === 0 && <EmptyState type="empty" />}
+      {repo && !error && isListView && !loading && prs.length > 0 && filtered.length === 0 && (
         <EmptyState type="empty" message="No PRs match your filter." />
       )}
 
-      {viewMode === "kanban" && kanbanContent === "prs" && hasResults && (
-        <KanbanView prs={filtered} repo={repo} />
-      )}
-      {viewMode === "kanban" && kanbanContent === "issues" && (
+      {/* Kanban PR view - always render, cards handle their own empty states */}
+      {isKanbanPRs && !error && <KanbanView prs={filtered} repo={repo} />}
+
+      {/* Kanban issues view */}
+      {isKanbanIssues && !error && (
         <IssueKanbanView issues={filteredIssues} repo={repo} loading={issuesLoading} />
       )}
 
-      {viewMode === "canvas" && repo && <CanvasView repo={repo} />}
+      {/* Canvas view */}
+      {viewMode === "canvas" && repo && !error && <CanvasView repo={repo} />}
 
-      {hasResults && viewMode === "list" && hasGroups && (
+      {isListView && filtered.length > 0 && hasGroups && (
         <div className="h-full overflow-y-auto">
           {grouped.map(
             ({ group, prs: groupPrs }) =>
@@ -343,7 +351,7 @@ function AppContent({
         </div>
       )}
 
-      {hasResults && viewMode === "list" && !hasGroups && (
+      {isListView && filtered.length > 0 && !hasGroups && (
         <div className="h-full overflow-y-auto">
           {filtered.map((pr) => (
             <PRRow key={pr.number} pr={pr} repo={repo} />
