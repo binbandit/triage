@@ -10,6 +10,7 @@ interface ChangesTabProps {
   files: PRFile[];
   repo: string;
   prNumber: number;
+  headSha?: string;
 }
 
 function FileIcon({ changeType }: { changeType?: string }) {
@@ -114,6 +115,7 @@ function InlineCommentForm({
             placeholder="Leave a comment..."
             rows={3}
             onSubmit={handleSubmit}
+            autoFocus
             className="border-0 rounded-none focus-within:border-0"
           />
 
@@ -249,11 +251,13 @@ function SingleFileDiff({
   onActivate,
   repo,
   prNumber,
+  headSha,
 }: {
   file: PRFile;
   onActivate: () => void;
   repo: string;
   prNumber: number;
+  headSha?: string;
 }) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -368,6 +372,11 @@ function SingleFileDiff({
     const lineNum = endLine.newLine ?? endLine.oldLine ?? 0;
     const startLineNum = startLine.newLine ?? startLine.oldLine ?? undefined;
 
+    if (!headSha) {
+      closeComment();
+      return;
+    }
+
     try {
       await window.api.reviewComment({
         repo,
@@ -377,6 +386,7 @@ function SingleFileDiff({
         line: lineNum,
         startLine: startLineNum !== lineNum ? startLineNum : undefined,
         side: commentRange.side,
+        commitSha: headSha,
       });
     } catch {
       // Silent
@@ -465,7 +475,7 @@ function SingleFileDiff({
 
 /* ── Changes tab (main) ───────────────────────────── */
 
-export function ChangesTab({ files, repo, prNumber }: ChangesTabProps) {
+export function ChangesTab({ files, repo, prNumber, headSha }: ChangesTabProps) {
   const [activeFile, setActiveFile] = useState<string | null>(null);
 
   const scrollToFile = (path: string) => {
@@ -519,6 +529,7 @@ export function ChangesTab({ files, repo, prNumber }: ChangesTabProps) {
             onActivate={() => setActiveFile(file.path)}
             repo={repo}
             prNumber={prNumber}
+            headSha={headSha}
           />
         ))}
       </div>

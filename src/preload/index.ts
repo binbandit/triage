@@ -60,6 +60,7 @@ contextBridge.exposeInMainWorld("api", {
     line: number;
     startLine?: number;
     side?: string;
+    commitSha: string;
   }) => ipcRenderer.invoke("gh:review-comment", options),
 
   // Issues

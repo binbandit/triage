@@ -149,7 +149,12 @@ export function PRDetailView({ repo, onSettings }: PRDetailViewProps) {
         )}
         {tab === "commits" && <CommitsTab pr={detail} repo={repo} />}
         {tab === "changes" && (
-          <ChangesTab files={filesWithPatch} repo={repo} prNumber={detail.number} />
+          <ChangesTab
+            files={filesWithPatch}
+            repo={repo}
+            prNumber={detail.number}
+            headSha={detail.commits?.[detail.commits.length - 1]?.oid}
+          />
         )}
       </div>
     </div>

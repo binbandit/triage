@@ -235,6 +235,7 @@ export interface TriageAPI {
     line: number;
     startLine?: number;
     side?: string;
+    commitSha: string;
   }) => Promise<ActionResult>;
 
   // Issues

@@ -10,6 +10,8 @@ interface MentionInputProps {
   className?: string;
   /** Pre-fill participants from the thread for quick @mention */
   participants?: string[];
+  /** Auto-focus the textarea on mount */
+  autoFocus?: boolean;
 }
 
 /**
@@ -24,6 +26,7 @@ export function MentionInput({
   onSubmit,
   className = "",
   participants = [],
+  autoFocus = false,
 }: MentionInputProps) {
   const [suggestions, setSuggestions] = useState<GitHubUser[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -162,6 +165,12 @@ export function MentionInput({
   useEffect(() => {
     return () => clearTimeout(debounceRef.current);
   }, []);
+
+  useEffect(() => {
+    if (autoFocus && textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, [autoFocus]);
 
   return (
     <div className="relative">

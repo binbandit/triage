@@ -333,21 +333,35 @@ ipcMain.handle(
       line: number;
       startLine?: number;
       side?: string;
+      commitSha: string;
     },
   ) => {
-    const { repo, number, body, path, line, startLine, side } = options;
-    // Use the REST API for review comments with line info
+    const { repo, number, body, path, line, startLine, side, commitSha } = options;
     const apiPath = `repos/${repo}/pulls/${number}/comments`;
-    const payload: Record<string, unknown> = {
-      body,
-      path,
-      line,
-      commit_id: "HEAD",
-    };
-    if (startLine && startLine !== line) payload.start_line = startLine;
-    if (side) payload.side = side;
-
-    await execGh(["api", apiPath, "--method", "POST", "--input", "-", "--silent"]);
+    const args = [
+      "api",
+      apiPath,
+      "--method",
+      "POST",
+      "-f",
+      `body=${body}`,
+      "-f",
+      `path=${path}`,
+      "-F",
+      `line=${line}`,
+      "-f",
+      `commit_id=${commitSha}`,
+    ];
+    if (startLine && startLine !== line) {
+      args.push("-F", `start_line=${startLine}`);
+    }
+    if (side) {
+      args.push("-f", `side=${side}`);
+      if (startLine && startLine !== line) {
+        args.push("-f", `start_side=${side}`);
+      }
+    }
+    await execGh(args);
     return { success: true };
   },
 );
