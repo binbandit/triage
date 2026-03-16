@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from "react";
+import React, { useState, useCallback, useRef, useMemo } from "react";
 import { FilePlus2, FileX2, FileEdit, ChevronRight, Plus, Loader2 } from "lucide-react";
 import type { PRFile } from "../../types";
 import type { DiffLine, DiffSegment } from "../../lib/parseDiff";
@@ -62,12 +62,22 @@ function SegmentedContent({ segments, type }: { segments?: DiffSegment[]; type: 
 function InlineCommentForm({
   onSubmit,
   onCancel,
+  startLineIdx,
+  endLineIdx,
+  lines,
 }: {
   onSubmit: (body: string) => Promise<void>;
   onCancel: () => void;
+  startLineIdx: number;
+  endLineIdx: number;
+  lines: DiffLine[];
 }) {
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const isMultiLine = startLineIdx !== endLineIdx;
+  const startLineNum = lines[startLineIdx]?.newLine ?? lines[startLineIdx]?.oldLine;
+  const endLineNum = lines[endLineIdx]?.newLine ?? lines[endLineIdx]?.oldLine;
 
   const handleSubmit = async () => {
     if (!body.trim()) return;
@@ -76,22 +86,54 @@ function InlineCommentForm({
     setSubmitting(false);
   };
 
+  const handleInsertSuggestion = () => {
+    const selectedContent = lines
+      .slice(startLineIdx, endLineIdx + 1)
+      .filter((l) => l.type !== "header")
+      .map((l) => l.content)
+      .join("\n");
+    const suggestion = `\`\`\`suggestion\n${selectedContent}\n\`\`\``;
+    setBody(body ? `${body}\n${suggestion}` : suggestion);
+  };
+
   return (
     <tr>
       <td colSpan={4} className="p-0">
-        <div className="mx-4 my-2 rounded-lg border border-[var(--color-blue)]/20 bg-[var(--color-bg-raised)] p-3 space-y-2">
+        <div className="mx-3 my-1.5 max-w-xl rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-raised)] overflow-hidden shadow-sm">
+          {isMultiLine && (
+            <div className="px-3 py-1 bg-[var(--color-bg-inset)] border-b border-[var(--color-border)]">
+              <span className="text-[10px] font-mono text-[var(--color-fg-dim)]">
+                Lines {startLineNum}&ndash;{endLineNum}
+              </span>
+            </div>
+          )}
+
           <MentionInput
             value={body}
             onChange={setBody}
-            placeholder="Write a review comment... (Cmd+Enter to submit)"
-            rows={2}
+            placeholder="Leave a comment..."
+            rows={3}
             onSubmit={handleSubmit}
+            className="border-0 rounded-none focus-within:border-0"
           />
-          <div className="flex items-center justify-end gap-2">
+
+          <div className="flex items-center gap-1 px-2 py-1.5 border-t border-[var(--color-border)]">
+            <button
+              type="button"
+              onClick={handleInsertSuggestion}
+              className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] cursor-pointer text-[var(--color-fg-dim)] hover:text-[var(--color-fg)] hover:bg-[var(--color-bg-overlay)] transition-colors"
+              title="Suggest a code change"
+            >
+              Suggest
+            </button>
+
+            <div className="flex-1" />
+
             <button
               type="button"
               onClick={onCancel}
-              className="rounded-md border border-[var(--color-border)] px-2.5 py-1 text-[11px] font-medium text-[var(--color-fg-muted)] cursor-pointer hover:bg-[var(--color-bg-overlay)] transition-colors"
+              disabled={submitting}
+              className="px-2 py-1 text-[10px] text-[var(--color-fg-dim)] hover:text-[var(--color-fg)] rounded-md cursor-pointer transition-colors disabled:opacity-40"
             >
               Cancel
             </button>
@@ -99,9 +141,15 @@ function InlineCommentForm({
               type="button"
               onClick={handleSubmit}
               disabled={!body.trim() || submitting}
-              className="rounded-md bg-[var(--color-blue)] px-2.5 py-1 text-[11px] font-medium text-white cursor-pointer hover:bg-[var(--color-blue)]/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-medium cursor-pointer transition-all",
+                body.trim()
+                  ? "bg-[var(--color-fg)] text-[var(--color-bg)] hover:opacity-90"
+                  : "bg-[var(--color-bg-overlay)] text-[var(--color-fg-muted)]",
+                "disabled:opacity-40 disabled:cursor-not-allowed",
+              )}
             >
-              {submitting ? <Loader2 className="size-3 animate-spin" /> : "Add comment"}
+              {submitting ? <Loader2 className="size-3 animate-spin" /> : "Comment"}
             </button>
           </div>
         </div>
@@ -116,37 +164,43 @@ function DiffLineRow({
   line,
   lineIndex,
   isSelected,
-  onGutterMouseDown,
-  onGutterMouseEnter,
+  onStartSelect,
+  onOpenComment,
+  onHoverLine,
 }: {
   line: DiffLine;
   lineIndex: number;
   isSelected: boolean;
-  onGutterMouseDown: (idx: number) => void;
-  onGutterMouseEnter: (idx: number) => void;
+  onStartSelect: (idx: number) => void;
+  onOpenComment: (idx: number, shiftKey: boolean) => void;
+  onHoverLine: (idx: number) => void;
 }) {
   const hasSegments = line.segments && line.segments.length > 0;
+  const canComment = line.type !== "header";
 
   return (
     <tr
       className={cn(
-        "leading-5 group/line",
+        "leading-5 group/line hover:brightness-95 dark:hover:brightness-110 transition-[filter] duration-75",
         line.type === "add" && "bg-[var(--color-green)]/[0.06]",
         line.type === "remove" && "bg-[var(--color-red)]/[0.06]",
         line.type === "header" && "bg-[var(--color-blue)]/[0.04]",
         isSelected && "!bg-[var(--color-blue)]/10",
       )}
+      onMouseEnter={() => onHoverLine(lineIndex)}
     >
       {/* Plus button gutter */}
       <td className="w-5 min-w-5 text-center select-none relative">
-        {line.type !== "header" && (
+        {canComment && (
           <button
             type="button"
             onMouseDown={(e) => {
               e.preventDefault();
-              onGutterMouseDown(lineIndex);
+              onStartSelect(lineIndex);
             }}
-            className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/line:opacity-100 cursor-pointer text-[var(--color-blue)] hover:bg-[var(--color-blue)]/10 transition-opacity"
+            onClick={(e) => onOpenComment(lineIndex, e.shiftKey)}
+            className="absolute left-0 top-1/2 -translate-y-1/2 size-4 flex items-center justify-center opacity-0 group-hover/line:opacity-100 cursor-pointer text-[var(--color-fg-muted)] hover:text-[var(--color-blue)] transition-opacity"
+            title="Add review comment (shift+click for range)"
           >
             <Plus className="size-3" />
           </button>
@@ -160,7 +214,6 @@ function DiffLineRow({
           line.type === "remove" && "text-[var(--color-red)]/40",
           line.type === "context" && "text-[var(--color-fg-dim)]",
         )}
-        onMouseEnter={() => onGutterMouseEnter(lineIndex)}
       >
         {line.type !== "header" && line.type !== "add" ? line.oldLine : ""}
       </td>
@@ -203,60 +256,117 @@ function SingleFileDiff({
   prNumber: number;
 }) {
   const [collapsed, setCollapsed] = useState(false);
-  const [selectStart, setSelectStart] = useState<number | null>(null);
-  const [selectEnd, setSelectEnd] = useState<number | null>(null);
-  const [isSelecting, setIsSelecting] = useState(false);
-  const [commentRange, setCommentRange] = useState<{ start: number; end: number } | null>(null);
-  const selectStartRef = useRef<number | null>(null);
-  const hoverRef = useRef<number | null>(null);
+
+  // Comment range: the committed selection the user wants to comment on
+  const [commentRange, setCommentRange] = useState<{
+    startIdx: number;
+    endIdx: number;
+    side: "LEFT" | "RIGHT";
+  } | null>(null);
+
+  // Drag selection state (transient, during mousedown-mousemove-mouseup)
+  const [selectingFrom, setSelectingFrom] = useState<{
+    idx: number;
+    side: "LEFT" | "RIGHT";
+  } | null>(null);
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  const selectingFromRef = useRef<{ idx: number; side: "LEFT" | "RIGHT" } | null>(null);
+  const hoverIdxRef = useRef<number | null>(null);
 
   const lines = useMemo(() => (file.patch ? parsePatch(file.patch) : []), [file.patch]);
 
-  const handleGutterMouseDown = useCallback((idx: number) => {
-    selectStartRef.current = idx;
-    hoverRef.current = idx;
-    setSelectStart(idx);
-    setSelectEnd(idx);
-    setIsSelecting(true);
-
-    const handleMouseUp = () => {
-      const start = selectStartRef.current;
-      const end = hoverRef.current;
-      if (start !== null && end !== null) {
-        setCommentRange({ start: Math.min(start, end), end: Math.max(start, end) });
-      }
-      setIsSelecting(false);
-      selectStartRef.current = null;
-      hoverRef.current = null;
-      document.removeEventListener("mouseup", handleMouseUp);
-    };
-    document.addEventListener("mouseup", handleMouseUp);
-  }, []);
-
-  const handleGutterMouseEnter = useCallback(
-    (idx: number) => {
-      if (!isSelecting) return;
-      hoverRef.current = idx;
-      setSelectEnd(idx);
+  // Compute which side a line belongs to
+  const getSide = useCallback(
+    (idx: number): "LEFT" | "RIGHT" => {
+      const line = lines[idx];
+      return line?.type === "remove" ? "LEFT" : "RIGHT";
     },
-    [isSelecting],
+    [lines],
   );
 
-  const selMin =
-    selectStart !== null && selectEnd !== null ? Math.min(selectStart, selectEnd) : null;
-  const selMax =
-    selectStart !== null && selectEnd !== null ? Math.max(selectStart, selectEnd) : null;
+  // Start a potential drag selection
+  const handleStartSelect = useCallback(
+    (idx: number) => {
+      const side = getSide(idx);
+      selectingFromRef.current = { idx, side };
+      hoverIdxRef.current = idx;
+      setSelectingFrom({ idx, side });
+      setHoverIdx(idx);
 
-  const effectiveSelMin = commentRange ? commentRange.start : selMin;
-  const effectiveSelMax = commentRange ? commentRange.end : selMax;
+      const handleMouseUp = () => {
+        document.removeEventListener("mouseup", handleMouseUp);
+        const from = selectingFromRef.current;
+        const hover = hoverIdxRef.current;
+        if (from && hover !== null) {
+          setCommentRange({
+            startIdx: Math.min(from.idx, hover),
+            endIdx: Math.max(from.idx, hover),
+            side: from.side,
+          });
+        }
+        selectingFromRef.current = null;
+        hoverIdxRef.current = null;
+        setSelectingFrom(null);
+        setHoverIdx(null);
+      };
+      document.addEventListener("mouseup", handleMouseUp);
+    },
+    [getSide],
+  );
+
+  // Click handler: single click for single line, shift+click to extend
+  const handleOpenComment = useCallback(
+    (idx: number, shiftKey: boolean) => {
+      if (selectingFromRef.current) return; // drag handled by mouseup
+
+      if (shiftKey && commentRange) {
+        const allIdxs = [commentRange.startIdx, commentRange.endIdx, idx];
+        setCommentRange({
+          startIdx: Math.min(...allIdxs),
+          endIdx: Math.max(...allIdxs),
+          side: commentRange.side,
+        });
+      } else {
+        setCommentRange({ startIdx: idx, endIdx: idx, side: getSide(idx) });
+      }
+    },
+    [commentRange, getSide],
+  );
+
+  // Track hover during drag
+  const handleHoverLine = useCallback((idx: number) => {
+    if (selectingFromRef.current) {
+      hoverIdxRef.current = idx;
+      setHoverIdx(idx);
+    }
+  }, []);
+
+  // Compute visual selection range
+  const selectionRange = useMemo(() => {
+    if (selectingFrom && hoverIdx !== null) {
+      return {
+        start: Math.min(selectingFrom.idx, hoverIdx),
+        end: Math.max(selectingFrom.idx, hoverIdx),
+      };
+    }
+    if (commentRange) {
+      return { start: commentRange.startIdx, end: commentRange.endIdx };
+    }
+    return null;
+  }, [selectingFrom, hoverIdx, commentRange]);
+
+  const closeComment = useCallback(() => {
+    setCommentRange(null);
+    setSelectingFrom(null);
+    setHoverIdx(null);
+  }, []);
 
   const handleCommentSubmit = async (body: string) => {
     if (!commentRange) return;
-    const endLine = lines[commentRange.end];
-    const startLine = lines[commentRange.start];
+    const endLine = lines[commentRange.endIdx];
+    const startLine = lines[commentRange.startIdx];
     const lineNum = endLine.newLine ?? endLine.oldLine ?? 0;
     const startLineNum = startLine.newLine ?? startLine.oldLine ?? undefined;
-    const side = endLine.type === "remove" ? "LEFT" : "RIGHT";
 
     try {
       await window.api.reviewComment({
@@ -266,14 +376,12 @@ function SingleFileDiff({
         path: file.path,
         line: lineNum,
         startLine: startLineNum !== lineNum ? startLineNum : undefined,
-        side,
+        side: commentRange.side,
       });
     } catch {
       // Silent
     }
-    setCommentRange(null);
-    setSelectStart(null);
-    setSelectEnd(null);
+    closeComment();
   };
 
   return (
@@ -313,31 +421,35 @@ function SingleFileDiff({
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left">
             <tbody>
-              {lines.map((line, i) => (
-                <DiffLineRow
-                  key={`${line.type}-${line.oldLine ?? "x"}-${line.newLine ?? "x"}-${i}`}
-                  line={line}
-                  lineIndex={i}
-                  isSelected={
-                    effectiveSelMin !== null &&
-                    effectiveSelMax !== null &&
-                    i >= effectiveSelMin &&
-                    i <= effectiveSelMax
-                  }
-                  onGutterMouseDown={handleGutterMouseDown}
-                  onGutterMouseEnter={handleGutterMouseEnter}
-                />
-              ))}
-              {commentRange && (
-                <InlineCommentForm
-                  onSubmit={handleCommentSubmit}
-                  onCancel={() => {
-                    setCommentRange(null);
-                    setSelectStart(null);
-                    setSelectEnd(null);
-                  }}
-                />
-              )}
+              {lines.map((line, i) => {
+                const isSelected =
+                  selectionRange !== null && i >= selectionRange.start && i <= selectionRange.end;
+                const showCommentForm = commentRange !== null && i === commentRange.endIdx;
+
+                return (
+                  <React.Fragment
+                    key={`${line.type}-${line.oldLine ?? "x"}-${line.newLine ?? "x"}-${i}`}
+                  >
+                    <DiffLineRow
+                      line={line}
+                      lineIndex={i}
+                      isSelected={isSelected}
+                      onStartSelect={handleStartSelect}
+                      onOpenComment={handleOpenComment}
+                      onHoverLine={handleHoverLine}
+                    />
+                    {showCommentForm && (
+                      <InlineCommentForm
+                        onSubmit={handleCommentSubmit}
+                        onCancel={closeComment}
+                        startLineIdx={commentRange.startIdx}
+                        endLineIdx={commentRange.endIdx}
+                        lines={lines}
+                      />
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
