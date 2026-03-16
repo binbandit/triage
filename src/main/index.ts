@@ -376,11 +376,35 @@ ipcMain.handle(
   },
 );
 
+// ── IPC: Reactions ───────────────────────────────────
+
+ipcMain.handle(
+  "gh:add-reaction",
+  async (
+    _event,
+    options: { repo: string; commentId: string; type: "issue" | "pr"; reaction: string },
+  ) => {
+    const { repo, commentId, type, reaction } = options;
+    const endpoint =
+      type === "issue"
+        ? `repos/${repo}/issues/comments/${commentId}/reactions`
+        : `repos/${repo}/pulls/comments/${commentId}/reactions`;
+    await execGh(["api", endpoint, "--method", "POST", "-f", `content=${reaction}`, "--silent"]);
+    return { success: true };
+  },
+);
+
 // ── IPC: Repo Labels ─────────────────────────────────
 
 ipcMain.handle("gh:repo-labels", async (_event, options: { repo: string }) => {
   const { repo } = options;
-  return execGh(["api", `repos/${repo}/labels`, "--paginate", "--jq", ".[].name"]);
+  return execGh([
+    "api",
+    `repos/${repo}/labels`,
+    "--paginate",
+    "--jq",
+    "[.[] | {name: .name, color: .color, description: .description}]",
+  ]);
 });
 
 // ── IPC: Search Users (@mention) ─────────────────────

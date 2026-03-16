@@ -6,6 +6,7 @@ beforeEach(() => {
   usePRStore.setState({
     prs: [],
     loading: false,
+    loadingClosed: false,
     error: null,
     search: "",
     closedFetchedRepo: "",

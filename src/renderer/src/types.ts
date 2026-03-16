@@ -165,6 +165,12 @@ export interface GitHubUser {
   avatar_url?: string;
 }
 
+export interface RepoLabel {
+  name: string;
+  color: string;
+  description: string;
+}
+
 // ── Issue types ──────────────────────────────────────
 
 export interface Issue {
@@ -240,11 +246,19 @@ export interface TriageAPI {
     removeLabels?: string[];
   }) => Promise<ActionResult>;
 
+  // Reactions
+  addReaction: (options: {
+    repo: string;
+    commentId: string;
+    type: "issue" | "pr";
+    reaction: string;
+  }) => Promise<ActionResult>;
+
   // Shared
   authStatus: () => Promise<AuthStatus>;
   currentRepo: () => Promise<RepoInfo | null>;
   fetchConfig: (options: { repo: string; path?: string }) => Promise<ConfigFetchResult>;
-  repoLabels: (options: { repo: string }) => Promise<string[] | string>;
+  repoLabels: (options: { repo: string }) => Promise<RepoLabel[] | string>;
   searchUsers: (options: { query: string }) => Promise<GitHubUser[]>;
   openExternal: (url: string) => Promise<void>;
 }

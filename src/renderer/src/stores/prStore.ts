@@ -4,6 +4,7 @@ import type { PullRequest } from "../types";
 interface PRStore {
   prs: PullRequest[];
   loading: boolean;
+  loadingClosed: boolean;
   error: string | null;
   search: string;
   closedFetchedRepo: string;
@@ -19,6 +20,7 @@ interface PRStore {
 export const usePRStore = create<PRStore>((set, get) => ({
   prs: [],
   loading: false,
+  loadingClosed: false,
   error: null,
   search: "",
   closedFetchedRepo: "",
@@ -43,18 +45,20 @@ export const usePRStore = create<PRStore>((set, get) => ({
   fetchClosedPRs: async (repo) => {
     if (!repo) return;
     if (get().closedFetchedRepo === repo) return;
-    set({ closedFetchedRepo: repo });
+    set({ closedFetchedRepo: repo, loadingClosed: true });
     try {
       const result = await window.api.listPRs({ state: "closed", limit: 100, repo });
       if (Array.isArray(result)) {
         set((state) => {
           const existing = new Set(state.prs.map((p) => p.number));
           const newPRs = result.filter((p: PullRequest) => !existing.has(p.number));
-          return { prs: [...state.prs, ...newPRs] };
+          return { prs: [...state.prs, ...newPRs], loadingClosed: false };
         });
+      } else {
+        set({ loadingClosed: false });
       }
     } catch {
-      // Non-critical
+      set({ loadingClosed: false });
     }
   },
 

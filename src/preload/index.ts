@@ -75,6 +75,14 @@ contextBridge.exposeInMainWorld("api", {
     removeLabels?: string[];
   }) => ipcRenderer.invoke("gh:edit-issue", options),
 
+  // Reactions
+  addReaction: (options: {
+    repo: string;
+    commentId: string;
+    type: "issue" | "pr";
+    reaction: string;
+  }) => ipcRenderer.invoke("gh:add-reaction", options),
+
   // Repo data
   repoLabels: (options: { repo: string }) => ipcRenderer.invoke("gh:repo-labels", options),
   searchUsers: (options: { query: string }) => ipcRenderer.invoke("gh:search-users", options),

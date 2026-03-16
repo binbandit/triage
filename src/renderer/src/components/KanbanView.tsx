@@ -1,5 +1,5 @@
 import { useState, type DragEvent } from "react";
-import { GitPullRequest, XCircle, GitMerge, X } from "lucide-react";
+import { GitPullRequest, XCircle, GitMerge, X, Loader2 } from "lucide-react";
 import type { PullRequest } from "../types";
 import { usePRStore } from "../stores/prStore";
 import { KanbanCard } from "./KanbanCard";
@@ -59,6 +59,7 @@ export function KanbanView({ prs, repo }: KanbanViewProps) {
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const updatePRState = usePRStore((s) => s.updatePRState);
+  const loadingClosed = usePRStore((s) => s.loadingClosed);
 
   // Bucket PRs into columns by state
   const openPRs = prs.filter((pr) => pr.state === "OPEN");
@@ -164,7 +165,11 @@ export function KanbanView({ prs, repo }: KanbanViewProps) {
                   {col.label}
                 </span>
                 <span className="text-[11px] font-mono text-[var(--color-fg-dim)] tabular-nums">
-                  {items.length}
+                  {loadingClosed && col.id !== "open" ? (
+                    <Loader2 className="size-3 animate-spin inline" />
+                  ) : (
+                    items.length
+                  )}
                 </span>
               </div>
 
@@ -180,7 +185,13 @@ export function KanbanView({ prs, repo }: KanbanViewProps) {
                   }
                 `}
               >
-                {items.length === 0 && (
+                {items.length === 0 && loadingClosed && col.id !== "open" && (
+                  <li className="list-none flex flex-col items-center justify-center py-12 gap-2">
+                    <Loader2 className="size-4 animate-spin text-[var(--color-fg-dim)]" />
+                    <span className="text-[11px] text-[var(--color-fg-dim)]">Loading...</span>
+                  </li>
+                )}
+                {items.length === 0 && !(loadingClosed && col.id !== "open") && (
                   <li className="list-none flex items-center justify-center py-12 text-[11px] text-[var(--color-fg-dim)]">
                     {col.emptyText}
                   </li>
