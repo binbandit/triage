@@ -1,4 +1,4 @@
-import type { PullRequest, LabelGroup, SortField, ReviewConditions } from "../types";
+import type { PullRequest, Issue, LabelGroup, SortField, ReviewConditions } from "../types";
 
 export function filterPRs(prs: PullRequest[], query: string): PullRequest[] {
   if (!query.trim()) return prs;
@@ -8,6 +8,18 @@ export function filterPRs(prs: PullRequest[], query: string): PullRequest[] {
     if (pr.author.login.toLowerCase().includes(q)) return true;
     if (`#${pr.number}`.includes(q)) return true;
     if (pr.labels.some((l) => l.name.toLowerCase().includes(q))) return true;
+    return false;
+  });
+}
+
+export function filterIssues(issues: Issue[], query: string): Issue[] {
+  if (!query.trim()) return issues;
+  const q = query.toLowerCase();
+  return issues.filter((issue) => {
+    if (issue.title.toLowerCase().includes(q)) return true;
+    if (issue.author.login.toLowerCase().includes(q)) return true;
+    if (`#${issue.number}`.includes(q)) return true;
+    if (issue.labels.some((l) => l.name.toLowerCase().includes(q))) return true;
     return false;
   });
 }

@@ -14,7 +14,7 @@ import { useIssueStore } from "./stores/issueStore";
 import { useConfigStore } from "./stores/configStore";
 import { usePRDetailStore } from "./stores/prDetailStore";
 import { useIssueDetailStore } from "./stores/issueDetailStore";
-import { filterPRs, groupPRs } from "./lib/prHelpers";
+import { filterPRs, filterIssues, groupPRs } from "./lib/prHelpers";
 import { classifyError } from "./lib/errorUtils";
 import { RepoInput } from "./components/RepoInput";
 import { SearchBar } from "./components/SearchBar";
@@ -238,6 +238,7 @@ function AppContent({
   const openPRs = useMemo(() => prs.filter((pr) => pr.state === "OPEN"), [prs]);
   const viewPRs = viewMode === "kanban" ? prs : openPRs;
   const filtered = useMemo(() => filterPRs(viewPRs, search), [viewPRs, search]);
+  const filteredIssues = useMemo(() => filterIssues(issues, search), [issues, search]);
 
   const groups = useMemo(() => config?.groups ?? [], [config]);
   const { grouped, ungrouped } = useMemo(() => groupPRs(filtered, groups), [filtered, groups]);
@@ -301,7 +302,7 @@ function AppContent({
         <KanbanView prs={filtered} repo={repo} />
       )}
       {viewMode === "kanban" && kanbanContent === "issues" && (
-        <IssueKanbanView issues={issues} repo={repo} loading={issuesLoading} />
+        <IssueKanbanView issues={filteredIssues} repo={repo} loading={issuesLoading} />
       )}
 
       {hasResults && viewMode === "list" && hasGroups && (
