@@ -1,8 +1,9 @@
-import { useState } from "react";
-import { Check, AlertTriangle, MessageSquare, Pencil, X, Loader2 } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Check, AlertTriangle, MessageSquare, Pencil, Loader2 } from "lucide-react";
 import type { PullRequestDetail } from "../../types";
 import { MarkdownBody } from "./MarkdownBody";
 import { MentionInput } from "./MentionInput";
+import { CommentActions } from "./CommentActions";
 
 interface ConversationTabProps {
   pr: PullRequestDetail;
@@ -54,16 +55,26 @@ export function ConversationTab({ pr, onComment, onEditBody }: ConversationTabPr
   const [bodyValue, setBodyValue] = useState(pr.body);
   const [bodySaving, setBodySaving] = useState(false);
 
+  // Extract participants for @mention pre-fill
+  const participants = useMemo(() => {
+    const set = new Set<string>();
+    set.add(pr.author.login);
+    for (const c of pr.comments ?? []) set.add(c.author.login);
+    for (const r of pr.reviews ?? []) set.add(r.author.login);
+    return [...set];
+  }, [pr.author.login, pr.comments, pr.reviews]);
+
   // Build a unified timeline from comments and reviews
   type TimelineItem =
-    | { type: "comment"; author: string; body: string; date: string }
-    | { type: "review"; author: string; body: string; state: string; date: string };
+    | { type: "comment"; id: string; author: string; body: string; date: string }
+    | { type: "review"; id: string; author: string; body: string; state: string; date: string };
 
   const timeline: TimelineItem[] = [];
 
   for (const c of pr.comments ?? []) {
     timeline.push({
       type: "comment",
+      id: c.id,
       author: c.author.login,
       body: c.body,
       date: c.createdAt,
@@ -74,6 +85,7 @@ export function ConversationTab({ pr, onComment, onEditBody }: ConversationTabPr
     if (r.state === "PENDING") continue;
     timeline.push({
       type: "review",
+      id: `review-${r.submittedAt}`,
       author: r.author.login,
       body: r.body || "",
       state: r.state,
@@ -181,9 +193,19 @@ export function ConversationTab({ pr, onComment, onEditBody }: ConversationTabPr
                   <ReviewBadge state={(item as TimelineItem & { state: string }).state} />
                 )}
               </div>
-              <span className="text-[10px] text-[var(--color-fg-dim)]">
-                {timeFormat(item.date)}
-              </span>
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] text-[var(--color-fg-dim)]">
+                  {timeFormat(item.date)}
+                </span>
+                {item.type === "comment" && (
+                  <CommentActions
+                    commentId={item.id}
+                    commentUrl={`${pr.url}#issuecomment-${item.id}`}
+                    repo={repo}
+                    type="pr"
+                  />
+                )}
+              </div>
             </div>
             {item.body && (
               <div className="px-3 py-3">
@@ -205,6 +227,7 @@ export function ConversationTab({ pr, onComment, onEditBody }: ConversationTabPr
             onChange={setComment}
             placeholder="Leave a comment... (@ to mention, Cmd+Enter to submit)"
             rows={2}
+            participants={participants}
             onSubmit={handleSubmitComment}
           />
           <div className="flex justify-end mt-2">

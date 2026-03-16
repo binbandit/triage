@@ -8,11 +8,13 @@ interface MentionInputProps {
   rows?: number;
   onSubmit?: () => void;
   className?: string;
+  /** Pre-fill participants from the thread for quick @mention */
+  participants?: string[];
 }
 
 /**
  * Textarea with @ mention autocomplete.
- * Triggers user search when typing @username.
+ * Shows thread participants first, then searches GitHub users.
  */
 export function MentionInput({
   value,
@@ -21,6 +23,7 @@ export function MentionInput({
   rows = 3,
   onSubmit,
   className = "",
+  participants = [],
 }: MentionInputProps) {
   const [suggestions, setSuggestions] = useState<GitHubUser[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -29,27 +32,57 @@ export function MentionInput({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
-  const searchUsers = useCallback(async (query: string) => {
-    if (query.length < 2) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-    try {
-      const results = await window.api.searchUsers({ query });
-      if (Array.isArray(results) && results.length > 0) {
-        setSuggestions(results);
-        setShowSuggestions(true);
-        setSelectedIndex(0);
-      } else {
+  const searchUsers = useCallback(
+    async (query: string) => {
+      // Show filtered participants immediately for short queries
+      if (participants.length > 0) {
+        const q = query.toLowerCase();
+        const matching = participants
+          .filter((p) => p.toLowerCase().includes(q))
+          .map((login) => ({ login }));
+
+        if (matching.length > 0 && query.length < 3) {
+          setSuggestions(matching);
+          setShowSuggestions(true);
+          setSelectedIndex(0);
+          return;
+        }
+      }
+
+      if (query.length < 2) {
+        setSuggestions([]);
+        setShowSuggestions(false);
+        return;
+      }
+
+      try {
+        const results = await window.api.searchUsers({ query });
+        // Merge: participants matching query first, then API results
+        const participantMatches = participants
+          .filter((p) => p.toLowerCase().includes(query.toLowerCase()))
+          .map((login) => ({ login }));
+        const apiResults = Array.isArray(results) ? results : [];
+        const seen = new Set(participantMatches.map((p) => p.login));
+        const merged = [
+          ...participantMatches,
+          ...apiResults.filter((r) => !seen.has(r.login)),
+        ].slice(0, 8);
+
+        if (merged.length > 0) {
+          setSuggestions(merged);
+          setShowSuggestions(true);
+          setSelectedIndex(0);
+        } else {
+          setSuggestions([]);
+          setShowSuggestions(false);
+        }
+      } catch {
         setSuggestions([]);
         setShowSuggestions(false);
       }
-    } catch {
-      setSuggestions([]);
-      setShowSuggestions(false);
-    }
-  }, []);
+    },
+    [participants],
+  );
 
   const handleChange = (newValue: string) => {
     onChange(newValue);
