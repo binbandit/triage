@@ -48,7 +48,7 @@ function ReviewBadge({ state }: { state: string }) {
   );
 }
 
-export function ConversationTab({ pr, onComment, onEditBody }: ConversationTabProps) {
+export function ConversationTab({ pr, repo, onComment, onEditBody }: ConversationTabProps) {
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [editingBody, setEditingBody] = useState(false);

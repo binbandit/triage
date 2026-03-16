@@ -143,17 +143,22 @@ ipcMain.handle("gh:fetch-config", async (_event, options: { repo: string; path?:
 ipcMain.handle("gh:auth-accounts", async () => {
   try {
     const result = await execGh(["auth", "status", "--json", "hosts"]);
-    const data = result as {
-      hosts: Record<string, Array<{ active: boolean; login: string; host: string }>>;
-    };
+    if (!result || typeof result !== "object") return [];
+    const data = result as Record<string, unknown>;
+    const hosts = data.hosts;
+    if (!hosts || typeof hosts !== "object") return [];
     const accounts: { login: string; host: string; active: boolean; avatarUrl: string }[] = [];
-    for (const [host, hostAccounts] of Object.entries(data.hosts)) {
+    for (const [host, hostAccounts] of Object.entries(hosts as Record<string, unknown>)) {
+      if (!Array.isArray(hostAccounts)) continue;
       for (const account of hostAccounts) {
+        if (!account || typeof account !== "object") continue;
+        const a = account as Record<string, unknown>;
+        if (typeof a.login !== "string") continue;
         accounts.push({
-          login: account.login,
+          login: a.login,
           host,
-          active: account.active,
-          avatarUrl: `https://avatars.githubusercontent.com/${account.login}?size=64`,
+          active: a.active === true,
+          avatarUrl: `https://avatars.githubusercontent.com/${a.login}?size=64`,
         });
       }
     }
