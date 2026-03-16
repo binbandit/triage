@@ -146,6 +146,9 @@ export interface Settings {
   viewMode: ViewMode;
   inlinePRView: boolean;
   interceptGitHubLinks: boolean;
+  showMergedPRs: boolean;
+  showClosedPRs: boolean;
+  showClosedIssues: boolean;
 }
 
 export interface LocalConfigResult {

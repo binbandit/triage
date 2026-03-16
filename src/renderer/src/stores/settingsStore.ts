@@ -9,6 +9,9 @@ const DEFAULT_SETTINGS: Settings = {
   viewMode: "list",
   inlinePRView: false,
   interceptGitHubLinks: false,
+  showMergedPRs: true,
+  showClosedPRs: true,
+  showClosedIssues: true,
 };
 
 function loadSettings(): Settings {
@@ -38,6 +41,9 @@ interface SettingsStore extends Settings {
   setViewMode: (viewMode: ViewMode) => void;
   setInlinePRView: (enabled: boolean) => void;
   setInterceptGitHubLinks: (enabled: boolean) => void;
+  setShowMergedPRs: (v: boolean) => void;
+  setShowClosedPRs: (v: boolean) => void;
+  setShowClosedIssues: (v: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsStore>((set, get) => {
@@ -52,6 +58,9 @@ export const useSettingsStore = create<SettingsStore>((set, get) => {
       viewMode: state.viewMode,
       inlinePRView: state.inlinePRView,
       interceptGitHubLinks: state.interceptGitHubLinks,
+      showMergedPRs: state.showMergedPRs,
+      showClosedPRs: state.showClosedPRs,
+      showClosedIssues: state.showClosedIssues,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
   };
@@ -77,6 +86,18 @@ export const useSettingsStore = create<SettingsStore>((set, get) => {
     },
     setInterceptGitHubLinks: (interceptGitHubLinks) => {
       set({ interceptGitHubLinks });
+      persist();
+    },
+    setShowMergedPRs: (showMergedPRs) => {
+      set({ showMergedPRs });
+      persist();
+    },
+    setShowClosedPRs: (showClosedPRs) => {
+      set({ showClosedPRs });
+      persist();
+    },
+    setShowClosedIssues: (showClosedIssues) => {
+      set({ showClosedIssues });
       persist();
     },
   };

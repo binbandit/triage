@@ -8,6 +8,8 @@ import type { PullRequest, Issue } from "../../types";
 
 interface CanvasViewProps {
   repo: string;
+  filteredPRs?: PullRequest[];
+  filteredIssues?: Issue[];
 }
 
 const ZONE_COLORS = [
@@ -318,7 +320,7 @@ function Minimap({
 
 /* ── Canvas View (main) ───────────────────────────── */
 
-export function CanvasView({ repo }: CanvasViewProps) {
+export function CanvasView({ repo, filteredPRs, filteredIssues }: CanvasViewProps) {
   const nodes = useCanvasStore((s) => s.nodes);
   const zones = useCanvasStore((s) => s.zones);
   const viewport = useCanvasStore((s) => s.viewport);
@@ -333,10 +335,14 @@ export function CanvasView({ repo }: CanvasViewProps) {
   // Use the shared search from prStore (same as header search bar)
   const searchQuery = usePRStore((s) => s.search);
 
-  const prs = usePRStore((s) => s.prs);
-  const issues = useIssueStore((s) => s.issues);
+  const storePrs = usePRStore((s) => s.prs);
+  const storeIssues = useIssueStore((s) => s.issues);
   const fetchIssues = useIssueStore((s) => s.fetchIssues);
   const issuesLoading = useIssueStore((s) => s.loading);
+
+  // Use filtered data from parent if provided, otherwise fall back to store
+  const prs = filteredPRs ?? storePrs;
+  const issues = filteredIssues ?? storeIssues;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const panRef = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(
@@ -390,10 +396,10 @@ export function CanvasView({ repo }: CanvasViewProps) {
 
   // Load issues on mount
   useEffect(() => {
-    if (repo && issues.length === 0 && !issuesLoading) {
+    if (repo && storeIssues.length === 0 && !issuesLoading) {
       fetchIssues(repo);
     }
-  }, [repo, issues.length, issuesLoading, fetchIssues]);
+  }, [repo, storeIssues.length, issuesLoading, fetchIssues]);
 
   // Load canvas when data is available
   const canvasDataKey = `${repo}:${prs.length}:${issues.length}`;

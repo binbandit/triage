@@ -6,8 +6,12 @@ import {
   Columns3,
   Loader2,
   GitPullRequest,
+  GitMerge,
+  XCircle,
   CircleDot,
   LayoutDashboard,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { useSettingsStore } from "./stores/settingsStore";
 import { usePRStore } from "./stores/prStore";
@@ -63,6 +67,68 @@ function ViewToggleButton({
 }
 
 /* ── Header ───────────────────────────────────────── */
+
+function FilterToggle({
+  active,
+  onClick,
+  icon: Icon,
+  label,
+  color,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: typeof GitMerge;
+  label: string;
+  color: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`p-1 rounded-sm cursor-pointer transition-colors ${active ? "" : "opacity-30"}`}
+      style={{ color }}
+      title={`${active ? "Hide" : "Show"} ${label}`}
+      aria-label={`${active ? "Hide" : "Show"} ${label}`}
+    >
+      <Icon className="size-3.5" />
+    </button>
+  );
+}
+
+function VisibilityFilters() {
+  const showMergedPRs = useSettingsStore((s) => s.showMergedPRs);
+  const showClosedPRs = useSettingsStore((s) => s.showClosedPRs);
+  const showClosedIssues = useSettingsStore((s) => s.showClosedIssues);
+  const setShowMergedPRs = useSettingsStore((s) => s.setShowMergedPRs);
+  const setShowClosedPRs = useSettingsStore((s) => s.setShowClosedPRs);
+  const setShowClosedIssues = useSettingsStore((s) => s.setShowClosedIssues);
+
+  return (
+    <div className="flex items-center gap-0.5 mr-1 rounded-md border border-[var(--color-border)] px-0.5 py-0.5">
+      <FilterToggle
+        active={showMergedPRs}
+        onClick={() => setShowMergedPRs(!showMergedPRs)}
+        icon={GitMerge}
+        label="merged PRs"
+        color="var(--color-purple)"
+      />
+      <FilterToggle
+        active={showClosedPRs}
+        onClick={() => setShowClosedPRs(!showClosedPRs)}
+        icon={XCircle}
+        label="closed PRs"
+        color="var(--color-red)"
+      />
+      <FilterToggle
+        active={showClosedIssues}
+        onClick={() => setShowClosedIssues(!showClosedIssues)}
+        icon={CircleDot}
+        label="closed issues"
+        color="var(--color-fg-muted)"
+      />
+    </div>
+  );
+}
 
 function AppHeader({
   showSettings,
@@ -177,6 +243,9 @@ function AppHeader({
             </div>
           )}
 
+          {/* Visibility filters */}
+          {!isDetailView && repo && <VisibilityFilters />}
+
           <button
             type="button"
             onClick={handleRefresh}
@@ -245,10 +314,34 @@ function AppContent({
   const issuesLoading = useIssueStore((s) => s.loading);
   const fetchIssues = useIssueStore((s) => s.fetchIssues);
 
-  const openPRs = useMemo(() => prs.filter((pr) => pr.state === "OPEN"), [prs]);
-  const viewPRs = viewMode === "list" ? openPRs : prs;
+  const showMergedPRs = useSettingsStore((s) => s.showMergedPRs);
+  const showClosedPRs = useSettingsStore((s) => s.showClosedPRs);
+  const showClosedIssues = useSettingsStore((s) => s.showClosedIssues);
+
+  const visiblePRs = useMemo(() => {
+    return prs.filter((pr) => {
+      if (pr.state === "OPEN") return true;
+      if ((pr.state === "MERGED" || pr.mergedAt) && !showMergedPRs) return false;
+      if (pr.state === "CLOSED" && !pr.mergedAt && !showClosedPRs) return false;
+      return true;
+    });
+  }, [prs, showMergedPRs, showClosedPRs]);
+
+  const visibleIssues = useMemo(() => {
+    return issues.filter((issue) => {
+      if (issue.state === "OPEN") return true;
+      if (issue.state === "CLOSED" && !showClosedIssues) return false;
+      return true;
+    });
+  }, [issues, showClosedIssues]);
+
+  const openPRs = useMemo(() => visiblePRs.filter((pr) => pr.state === "OPEN"), [visiblePRs]);
+  const viewPRs = viewMode === "list" ? openPRs : visiblePRs;
   const filtered = useMemo(() => filterPRs(viewPRs, search), [viewPRs, search]);
-  const filteredIssues = useMemo(() => filterIssues(issues, search), [issues, search]);
+  const filteredIssues = useMemo(
+    () => filterIssues(visibleIssues, search),
+    [visibleIssues, search],
+  );
 
   const groups = useMemo(() => config?.groups ?? [], [config]);
   const { grouped, ungrouped } = useMemo(() => groupPRs(filtered, groups), [filtered, groups]);
@@ -328,7 +421,9 @@ function AppContent({
       )}
 
       {/* Canvas view */}
-      {viewMode === "canvas" && repo && !error && <CanvasView repo={repo} />}
+      {viewMode === "canvas" && repo && !error && (
+        <CanvasView repo={repo} filteredPRs={visiblePRs} filteredIssues={visibleIssues} />
+      )}
 
       {isListView && filtered.length > 0 && hasGroups && (
         <div className="h-full overflow-y-auto">
