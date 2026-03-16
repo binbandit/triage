@@ -39,9 +39,11 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const theme = useSettingsStore((s) => s.theme);
   const inlinePRView = useSettingsStore((s) => s.inlinePRView);
   const interceptGitHubLinks = useSettingsStore((s) => s.interceptGitHubLinks);
+  const experimentalCanvas = useSettingsStore((s) => s.experimentalCanvas);
   const setTheme = useSettingsStore((s) => s.setTheme);
   const setInlinePRView = useSettingsStore((s) => s.setInlinePRView);
   const setInterceptGitHubLinks = useSettingsStore((s) => s.setInterceptGitHubLinks);
+  const setExperimentalCanvas = useSettingsStore((s) => s.setExperimentalCanvas);
 
   const [accounts, setAccounts] = useState<AuthAccount[]>([]);
   const [accountsLoading, setAccountsLoading] = useState(true);
@@ -216,6 +218,24 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
               </p>
             </div>
             <Switch checked={interceptGitHubLinks} onCheckedChange={setInterceptGitHubLinks} />
+          </div>
+        </div>
+
+        {/* Experimental */}
+        <div className="mt-5 pt-4 border-t border-[var(--color-border)]">
+          <p className="text-[12px] font-medium text-[var(--color-fg-secondary)] mb-2.5">
+            Experimental
+          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[12px] font-medium text-[var(--color-fg-secondary)]">
+                Canvas view
+              </p>
+              <p className="text-[11px] text-[var(--color-fg-dim)] mt-0.5">
+                Infinite canvas to visually map PRs, issues, and their relationships.
+              </p>
+            </div>
+            <Switch checked={experimentalCanvas} onCheckedChange={setExperimentalCanvas} />
           </div>
         </div>
 

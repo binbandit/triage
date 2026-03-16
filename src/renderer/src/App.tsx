@@ -6,12 +6,8 @@ import {
   Columns3,
   Loader2,
   GitPullRequest,
-  GitMerge,
-  XCircle,
   CircleDot,
   LayoutDashboard,
-  Eye,
-  EyeOff,
 } from "lucide-react";
 import { useSettingsStore } from "./stores/settingsStore";
 import { usePRStore } from "./stores/prStore";
@@ -68,68 +64,6 @@ function ViewToggleButton({
 
 /* ── Header ───────────────────────────────────────── */
 
-function FilterToggle({
-  active,
-  onClick,
-  icon: Icon,
-  label,
-  color,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon: typeof GitMerge;
-  label: string;
-  color: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`p-1 rounded-sm cursor-pointer transition-colors ${active ? "" : "opacity-30"}`}
-      style={{ color }}
-      title={`${active ? "Hide" : "Show"} ${label}`}
-      aria-label={`${active ? "Hide" : "Show"} ${label}`}
-    >
-      <Icon className="size-3.5" />
-    </button>
-  );
-}
-
-function VisibilityFilters() {
-  const showMergedPRs = useSettingsStore((s) => s.showMergedPRs);
-  const showClosedPRs = useSettingsStore((s) => s.showClosedPRs);
-  const showClosedIssues = useSettingsStore((s) => s.showClosedIssues);
-  const setShowMergedPRs = useSettingsStore((s) => s.setShowMergedPRs);
-  const setShowClosedPRs = useSettingsStore((s) => s.setShowClosedPRs);
-  const setShowClosedIssues = useSettingsStore((s) => s.setShowClosedIssues);
-
-  return (
-    <div className="flex items-center gap-0.5 mr-1 rounded-md border border-[var(--color-border)] px-0.5 py-0.5">
-      <FilterToggle
-        active={showMergedPRs}
-        onClick={() => setShowMergedPRs(!showMergedPRs)}
-        icon={GitMerge}
-        label="merged PRs"
-        color="var(--color-purple)"
-      />
-      <FilterToggle
-        active={showClosedPRs}
-        onClick={() => setShowClosedPRs(!showClosedPRs)}
-        icon={XCircle}
-        label="closed PRs"
-        color="var(--color-red)"
-      />
-      <FilterToggle
-        active={showClosedIssues}
-        onClick={() => setShowClosedIssues(!showClosedIssues)}
-        icon={CircleDot}
-        label="closed issues"
-        color="var(--color-fg-muted)"
-      />
-    </div>
-  );
-}
-
 function AppHeader({
   showSettings,
   kanbanContent,
@@ -144,6 +78,7 @@ function AppHeader({
   const inlinePRView = useSettingsStore((s) => s.inlinePRView);
   const setRepo = useSettingsStore((s) => s.setRepo);
   const setViewMode = useSettingsStore((s) => s.setViewMode);
+  const experimentalCanvas = useSettingsStore((s) => s.experimentalCanvas);
 
   const loading = usePRStore((s) => s.loading);
   const search = usePRStore((s) => s.search);
@@ -213,13 +148,15 @@ function AppHeader({
               >
                 <Columns3 className="size-3.5" />
               </ViewToggleButton>
-              <ViewToggleButton
-                active={viewMode === "canvas"}
-                onClick={() => setViewMode("canvas")}
-                label="Canvas view"
-              >
-                <LayoutDashboard className="size-3.5" />
-              </ViewToggleButton>
+              {experimentalCanvas && (
+                <ViewToggleButton
+                  active={viewMode === "canvas"}
+                  onClick={() => setViewMode("canvas")}
+                  label="Canvas view"
+                >
+                  <LayoutDashboard className="size-3.5" />
+                </ViewToggleButton>
+              )}
             </div>
           )}
 
@@ -242,9 +179,6 @@ function AppHeader({
               </ViewToggleButton>
             </div>
           )}
-
-          {/* Visibility filters */}
-          {!isDetailView && repo && <VisibilityFilters />}
 
           <button
             type="button"
@@ -299,6 +233,7 @@ function AppContent({
   const viewMode = useSettingsStore((s) => s.viewMode);
   const inlinePRView = useSettingsStore((s) => s.inlinePRView);
   const interceptGitHubLinks = useSettingsStore((s) => s.interceptGitHubLinks);
+  const experimentalCanvas = useSettingsStore((s) => s.experimentalCanvas);
 
   const prs = usePRStore((s) => s.prs);
   const loading = usePRStore((s) => s.loading);
@@ -421,7 +356,7 @@ function AppContent({
       )}
 
       {/* Canvas view */}
-      {viewMode === "canvas" && repo && !error && (
+      {viewMode === "canvas" && experimentalCanvas && repo && !error && (
         <CanvasView repo={repo} filteredPRs={visiblePRs} filteredIssues={visibleIssues} />
       )}
 

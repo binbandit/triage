@@ -1,8 +1,20 @@
 import { useEffect, useRef, useCallback, useMemo, useState } from "react";
-import { Plus, ZoomIn, ZoomOut, Maximize2, Loader2, Trash2, Palette } from "lucide-react";
+import {
+  Plus,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Loader2,
+  Trash2,
+  Palette,
+  GitMerge,
+  XCircle,
+  CircleDot,
+} from "lucide-react";
 import { useCanvasStore, type CanvasNode, type CanvasZone } from "../../stores/canvasStore";
 import { usePRStore } from "../../stores/prStore";
 import { useIssueStore } from "../../stores/issueStore";
+import { useSettingsStore } from "../../stores/settingsStore";
 import { CanvasCard } from "./CanvasCard";
 import type { PullRequest, Issue } from "../../types";
 
@@ -318,6 +330,49 @@ function Minimap({
   );
 }
 
+/* ── Visibility Filters ───────────────────────────── */
+
+function CanvasFilters() {
+  const showMergedPRs = useSettingsStore((s) => s.showMergedPRs);
+  const showClosedPRs = useSettingsStore((s) => s.showClosedPRs);
+  const showClosedIssues = useSettingsStore((s) => s.showClosedIssues);
+  const setShowMergedPRs = useSettingsStore((s) => s.setShowMergedPRs);
+  const setShowClosedPRs = useSettingsStore((s) => s.setShowClosedPRs);
+  const setShowClosedIssues = useSettingsStore((s) => s.setShowClosedIssues);
+
+  return (
+    <div className="flex items-center gap-0.5 rounded-md border border-[var(--color-border)] bg-[var(--color-bg-raised)] px-1 py-0.5">
+      <button
+        type="button"
+        onClick={() => setShowMergedPRs(!showMergedPRs)}
+        className={`p-1.5 rounded-sm cursor-pointer transition-colors ${showMergedPRs ? "" : "opacity-30"}`}
+        style={{ color: "var(--color-purple)" }}
+        title={`${showMergedPRs ? "Hide" : "Show"} merged PRs`}
+      >
+        <GitMerge className="size-3.5" />
+      </button>
+      <button
+        type="button"
+        onClick={() => setShowClosedPRs(!showClosedPRs)}
+        className={`p-1.5 rounded-sm cursor-pointer transition-colors ${showClosedPRs ? "" : "opacity-30"}`}
+        style={{ color: "var(--color-red)" }}
+        title={`${showClosedPRs ? "Hide" : "Show"} closed PRs`}
+      >
+        <XCircle className="size-3.5" />
+      </button>
+      <button
+        type="button"
+        onClick={() => setShowClosedIssues(!showClosedIssues)}
+        className={`p-1.5 rounded-sm cursor-pointer transition-colors ${showClosedIssues ? "" : "opacity-30"}`}
+        style={{ color: "var(--color-fg-muted)" }}
+        title={`${showClosedIssues ? "Hide" : "Show"} closed issues`}
+      >
+        <CircleDot className="size-3.5" />
+      </button>
+    </div>
+  );
+}
+
 /* ── Canvas View (main) ───────────────────────────── */
 
 export function CanvasView({ repo, filteredPRs, filteredIssues }: CanvasViewProps) {
@@ -622,6 +677,8 @@ export function CanvasView({ repo, filteredPRs, filteredIssues }: CanvasViewProp
 
       {/* Canvas actions */}
       <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5">
+        {/* Visibility filters */}
+        <CanvasFilters />
         <button
           type="button"
           onClick={() => resetLayout(repo, prs, issues)}

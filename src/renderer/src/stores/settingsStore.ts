@@ -12,6 +12,7 @@ const DEFAULT_SETTINGS: Settings = {
   showMergedPRs: true,
   showClosedPRs: true,
   showClosedIssues: true,
+  experimentalCanvas: false,
 };
 
 function loadSettings(): Settings {
@@ -44,6 +45,7 @@ interface SettingsStore extends Settings {
   setShowMergedPRs: (v: boolean) => void;
   setShowClosedPRs: (v: boolean) => void;
   setShowClosedIssues: (v: boolean) => void;
+  setExperimentalCanvas: (v: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsStore>((set, get) => {
@@ -61,6 +63,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => {
       showMergedPRs: state.showMergedPRs,
       showClosedPRs: state.showClosedPRs,
       showClosedIssues: state.showClosedIssues,
+      experimentalCanvas: state.experimentalCanvas,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
   };
@@ -98,6 +101,10 @@ export const useSettingsStore = create<SettingsStore>((set, get) => {
     },
     setShowClosedIssues: (showClosedIssues) => {
       set({ showClosedIssues });
+      persist();
+    },
+    setExperimentalCanvas: (experimentalCanvas) => {
+      set({ experimentalCanvas });
       persist();
     },
   };

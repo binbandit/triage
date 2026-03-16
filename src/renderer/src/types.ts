@@ -149,6 +149,7 @@ export interface Settings {
   showMergedPRs: boolean;
   showClosedPRs: boolean;
   showClosedIssues: boolean;
+  experimentalCanvas: boolean;
 }
 
 export interface LocalConfigResult {
