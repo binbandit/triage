@@ -562,6 +562,23 @@ ipcMain.handle("gh:search-users", async (_event, options: { query: string }) => 
   }
 });
 
+ipcMain.handle("gh:search-issues-prs", async (_event, options: { repo: string; query: string }) => {
+  const { repo, query } = options;
+  if (!query || !repo) return [];
+  try {
+    // Search both issues and PRs via GitHub search API
+    const result = await execGh([
+      "api",
+      `search/issues?q=${encodeURIComponent(query)}+repo:${repo}&per_page=8`,
+      "--jq",
+      ".items | map({number: .number, title: .title, state: .state, pull_request: .pull_request})",
+    ]);
+    return result;
+  } catch {
+    return [];
+  }
+});
+
 // ── IPC: Canvas DB ───────────────────────────────────
 
 import {

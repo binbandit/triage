@@ -304,6 +304,10 @@ export interface TriageAPI {
   fetchConfig: (options: { repo: string; path?: string }) => Promise<ConfigFetchResult>;
   repoLabels: (options: { repo: string }) => Promise<RepoLabel[] | string>;
   searchUsers: (options: { query: string }) => Promise<GitHubUser[]>;
+  searchIssuesPRs: (options: {
+    repo: string;
+    query: string;
+  }) => Promise<{ number: number; title: string; state: string; pull_request?: unknown }[]>;
   openExternal: (url: string) => Promise<void>;
 }
 

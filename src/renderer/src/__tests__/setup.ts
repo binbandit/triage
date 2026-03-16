@@ -65,6 +65,7 @@ const mockApi = {
   canvasSaveViewport: vi.fn().mockResolvedValue({ success: true }),
   repoLabels: vi.fn().mockResolvedValue([]),
   searchUsers: vi.fn().mockResolvedValue([]),
+  searchIssuesPRs: vi.fn().mockResolvedValue([]),
   openExternal: vi.fn().mockResolvedValue(undefined),
 };
 

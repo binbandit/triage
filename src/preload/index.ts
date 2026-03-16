@@ -107,6 +107,8 @@ contextBridge.exposeInMainWorld("api", {
   // Repo data
   repoLabels: (options: { repo: string }) => ipcRenderer.invoke("gh:repo-labels", options),
   searchUsers: (options: { query: string }) => ipcRenderer.invoke("gh:search-users", options),
+  searchIssuesPRs: (options: { repo: string; query: string }) =>
+    ipcRenderer.invoke("gh:search-issues-prs", options),
 
   // Canvas DB
   canvasGetNodes: (repo: string) => ipcRenderer.invoke("canvas:get-nodes", repo),
