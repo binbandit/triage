@@ -401,21 +401,14 @@ export function CanvasView({ repo }: CanvasViewProps) {
   }, [repo, issues.length, issuesLoading, fetchIssues]);
 
   // Load canvas when data is available
-  const latestPRs = useRef(prs);
-  const latestIssues = useRef(issues);
-  latestPRs.current = prs;
-  latestIssues.current = issues;
-
-  // Trigger load when PR or issue counts change
-  const prCount = prs.length;
-  const issueCount = issues.length;
+  const canvasDataKey = `${repo}:${prs.length}:${issues.length}`;
+  const loadedKeyRef = useRef("");
   useEffect(() => {
-    // issueCount is used as a dep to reload when issues arrive after PRs
-    if (!repo || prCount === 0) return;
-    const _ic = issueCount; // reference to satisfy exhaustive-deps
-    void _ic;
-    loadCanvas(repo, latestPRs.current, latestIssues.current);
-  }, [repo, prCount, issueCount, loadCanvas]);
+    if (!repo || prs.length === 0) return;
+    if (loadedKeyRef.current === canvasDataKey) return;
+    loadedKeyRef.current = canvasDataKey;
+    loadCanvas(repo, prs, issues);
+  }, [canvasDataKey, repo, prs, issues, loadCanvas]);
 
   // Keyboard shortcuts
   useEffect(() => {

@@ -199,7 +199,8 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
           : { panX: 0, panY: 0, zoom: 1 },
         loading: false,
       });
-    } catch {
+    } catch (err) {
+      console.error("Canvas loadCanvas failed:", err);
       set({ loading: false });
     }
   },
