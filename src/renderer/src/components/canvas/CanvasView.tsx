@@ -1,15 +1,5 @@
 import { useEffect, useRef, useCallback, useMemo, useState } from "react";
-import {
-  Plus,
-  Search,
-  X,
-  ZoomIn,
-  ZoomOut,
-  Maximize2,
-  Loader2,
-  Trash2,
-  Palette,
-} from "lucide-react";
+import { Plus, ZoomIn, ZoomOut, Maximize2, Loader2, Trash2, Palette } from "lucide-react";
 import { useCanvasStore, type CanvasNode, type CanvasZone } from "../../stores/canvasStore";
 import { usePRStore } from "../../stores/prStore";
 import { useIssueStore } from "../../stores/issueStore";
@@ -208,28 +198,31 @@ function ArrowLayer({ nodes }: { nodes: CanvasNode[] }) {
       aria-hidden="true"
     >
       <defs>
-        <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-          <polygon points="0 0, 8 3, 0 6" fill="var(--color-fg-dim)" opacity="0.5" />
+        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0, 10 3.5, 0 7" fill="var(--color-blue)" opacity="0.6" />
         </marker>
       </defs>
       {arrows.map((arrow) => {
         const from = nodeMap.get(arrow.fromId);
         const to = nodeMap.get(arrow.toId);
         if (!from || !to) return null;
+        // Connect from issue (bottom center) to PR (top center)
         const x1 = from.x + from.width / 2;
-        const y1 = from.y + 50;
+        const y1 = from.y + (from.type === "issue" ? from.height : from.height / 2);
         const x2 = to.x + to.width / 2;
-        const y2 = to.y + 50;
-        const cx = (x1 + x2) / 2;
+        const y2 = to.y + (to.type === "pr" ? 0 : to.height / 2);
+        // Smooth bezier with vertical bias
+        const dy = y2 - y1;
+        const cy1 = y1 + dy * 0.4;
+        const cy2 = y2 - dy * 0.4;
         return (
           <path
             key={`${arrow.fromId}-${arrow.toId}`}
-            d={`M ${x1} ${y1} C ${cx} ${y1}, ${cx} ${y2}, ${x2} ${y2}`}
+            d={`M ${x1} ${y1} C ${x1} ${cy1}, ${x2} ${cy2}, ${x2} ${y2}`}
             fill="none"
-            stroke="var(--color-fg-dim)"
+            stroke="var(--color-blue)"
             strokeWidth="1.5"
-            strokeDasharray="4 3"
-            opacity="0.35"
+            opacity="0.3"
             markerEnd="url(#arrowhead)"
           />
         );
@@ -330,13 +323,15 @@ export function CanvasView({ repo }: CanvasViewProps) {
   const zones = useCanvasStore((s) => s.zones);
   const viewport = useCanvasStore((s) => s.viewport);
   const loading = useCanvasStore((s) => s.loading);
-  const searchQuery = useCanvasStore((s) => s.searchQuery);
   const setViewport = useCanvasStore((s) => s.setViewport);
   const saveViewport = useCanvasStore((s) => s.saveViewport);
   const addZone = useCanvasStore((s) => s.addZone);
   const selectNode = useCanvasStore((s) => s.selectNode);
-  const setSearch = useCanvasStore((s) => s.setSearch);
   const loadCanvas = useCanvasStore((s) => s.loadCanvas);
+  const resetLayout = useCanvasStore((s) => s.resetLayout);
+
+  // Use the shared search from prStore (same as header search bar)
+  const searchQuery = usePRStore((s) => s.search);
 
   const prs = usePRStore((s) => s.prs);
   const issues = useIssueStore((s) => s.issues);
@@ -415,7 +410,6 @@ export function CanvasView({ repo }: CanvasViewProps) {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         selectNode(null);
-        setSearch("");
       }
       if (e.key === "+" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
@@ -435,7 +429,7 @@ export function CanvasView({ repo }: CanvasViewProps) {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [viewport, setViewport, debouncedSaveViewport, selectNode, setSearch, repo]);
+  }, [viewport, setViewport, debouncedSaveViewport, selectNode, repo]);
 
   // Lookup maps
   const prMap = useMemo(() => {
@@ -568,43 +562,28 @@ export function CanvasView({ repo }: CanvasViewProps) {
 
   return (
     <div className="relative w-full h-full overflow-hidden bg-[var(--color-bg)]" ref={containerRef}>
-      {/* Grid background */}
+      {/* Dot grid background */}
       <div
-        className="absolute inset-0 pointer-events-none opacity-[0.04]"
+        className="absolute inset-0 pointer-events-none"
         style={{
-          backgroundImage: "radial-gradient(circle, var(--color-fg) 1px, transparent 1px)",
-          backgroundSize: `${20 * viewport.zoom}px ${20 * viewport.zoom}px`,
-          backgroundPosition: `${viewport.panX % (20 * viewport.zoom)}px ${viewport.panY % (20 * viewport.zoom)}px`,
+          backgroundImage: `
+            radial-gradient(circle, var(--color-fg-dim) 0.75px, transparent 0.75px),
+            radial-gradient(circle, var(--color-fg-dim) 0.4px, transparent 0.4px)
+          `,
+          backgroundSize: `${24 * viewport.zoom}px ${24 * viewport.zoom}px, ${6 * viewport.zoom}px ${6 * viewport.zoom}px`,
+          backgroundPosition: `${viewport.panX % (24 * viewport.zoom)}px ${viewport.panY % (24 * viewport.zoom)}px, ${viewport.panX % (6 * viewport.zoom)}px ${viewport.panY % (6 * viewport.zoom)}px`,
+          opacity: 0.15,
         }}
       />
 
-      {/* Toolbar */}
-      <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5">
-        <div className="relative">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-3 pointer-events-none text-[var(--color-fg-dim)]" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search canvas..."
-            className="w-44 rounded-md border border-[var(--color-border)] bg-[var(--color-bg-raised)] pl-7 pr-7 py-1.5 text-[11px] text-[var(--color-fg)] placeholder:text-[var(--color-fg-dim)] outline-none focus:border-[var(--color-blue)]/40"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearch("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer text-[var(--color-fg-dim)] hover:text-[var(--color-fg-secondary)]"
-            >
-              <X className="size-3" />
-            </button>
-          )}
-        </div>
-        {highlightedIds.size > 0 && (
+      {/* Search match indicator (search is in the header bar) */}
+      {highlightedIds.size > 0 && (
+        <div className="absolute top-3 left-3 z-20 rounded-md border border-[var(--color-border)] bg-[var(--color-bg-raised)]/90 backdrop-blur-sm px-2.5 py-1">
           <span className="text-[10px] text-[var(--color-fg-dim)] tabular-nums">
-            {highlightedIds.size} found
+            {highlightedIds.size} match{highlightedIds.size !== 1 ? "es" : ""}
           </span>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Zoom controls */}
       <div className="absolute bottom-3 right-3 z-20 flex items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-bg-raised)] p-0.5">
@@ -635,8 +614,16 @@ export function CanvasView({ repo }: CanvasViewProps) {
         </button>
       </div>
 
-      {/* Add zone */}
-      <div className="absolute top-3 right-3 z-20">
+      {/* Canvas actions */}
+      <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => resetLayout(repo, prs, issues)}
+          className="flex items-center gap-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-bg-raised)] px-2.5 py-1.5 text-[11px] font-medium text-[var(--color-fg-dim)] cursor-pointer hover:bg-[var(--color-bg-overlay)] hover:text-[var(--color-fg-secondary)] transition-colors"
+          title="Re-arrange all cards using auto-layout"
+        >
+          Reset layout
+        </button>
         <button
           type="button"
           onClick={() => addZone(repo)}
