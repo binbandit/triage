@@ -567,7 +567,7 @@ export function CanvasView({ repo }: CanvasViewProps) {
   }
 
   return (
-    <div className="relative flex-1 overflow-hidden bg-[var(--color-bg)]" ref={containerRef}>
+    <div className="relative w-full h-full overflow-hidden bg-[var(--color-bg)]" ref={containerRef}>
       {/* Grid background */}
       <div
         className="absolute inset-0 pointer-events-none opacity-[0.04]"
