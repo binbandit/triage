@@ -1,7 +1,16 @@
 import { useState, useEffect, useMemo } from "react";
-import { Settings as SettingsIcon, RefreshCw, List, Columns3, Loader2 } from "lucide-react";
+import {
+  Settings as SettingsIcon,
+  RefreshCw,
+  List,
+  Columns3,
+  Loader2,
+  GitPullRequest,
+  CircleDot,
+} from "lucide-react";
 import { useSettingsStore } from "./stores/settingsStore";
 import { usePRStore } from "./stores/prStore";
+import { useIssueStore } from "./stores/issueStore";
 import { useConfigStore } from "./stores/configStore";
 import { usePRDetailStore } from "./stores/prDetailStore";
 import { useIssueDetailStore } from "./stores/issueDetailStore";
@@ -12,10 +21,12 @@ import { SearchBar } from "./components/SearchBar";
 import { PRRow } from "./components/PRRow";
 import { GroupSection } from "./components/GroupSection";
 import { KanbanView } from "./components/KanbanView";
+import { IssueKanbanView } from "./components/IssueKanbanView";
 import { PRDetailView } from "./components/pr/PRDetailView";
 import { IssueDetailView } from "./components/pr/IssueDetailView";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { EmptyState } from "./components/EmptyState";
+import type { KanbanContent } from "./types";
 
 /* ── View toggle button ───────────────────────────── */
 
@@ -51,7 +62,15 @@ function ViewToggleButton({
 
 /* ── Header ───────────────────────────────────────── */
 
-function AppHeader({ showSettings }: { showSettings: () => void }) {
+function AppHeader({
+  showSettings,
+  kanbanContent,
+  setKanbanContent,
+}: {
+  showSettings: () => void;
+  kanbanContent: KanbanContent;
+  setKanbanContent: (v: KanbanContent) => void;
+}) {
   const repo = useSettingsStore((s) => s.repo);
   const viewMode = useSettingsStore((s) => s.viewMode);
   const inlinePRView = useSettingsStore((s) => s.inlinePRView);
@@ -129,6 +148,26 @@ function AppHeader({ showSettings }: { showSettings: () => void }) {
             </div>
           )}
 
+          {/* PR / Issues toggle for kanban */}
+          {!isDetailView && repo && viewMode === "kanban" && (
+            <div className="flex items-center rounded-md border border-[var(--color-border)] mr-1">
+              <ViewToggleButton
+                active={kanbanContent === "prs"}
+                onClick={() => setKanbanContent("prs")}
+                label="Pull Requests"
+              >
+                <GitPullRequest className="size-3.5" />
+              </ViewToggleButton>
+              <ViewToggleButton
+                active={kanbanContent === "issues"}
+                onClick={() => setKanbanContent("issues")}
+                label="Issues"
+              >
+                <CircleDot className="size-3.5" />
+              </ViewToggleButton>
+            </div>
+          )}
+
           <button
             type="button"
             onClick={handleRefresh}
@@ -171,7 +210,13 @@ function AppHeader({ showSettings }: { showSettings: () => void }) {
 
 /* ── Content ──────────────────────────────────────── */
 
-function AppContent({ onSettings }: { onSettings: () => void }) {
+function AppContent({
+  onSettings,
+  kanbanContent,
+}: {
+  onSettings: () => void;
+  kanbanContent: KanbanContent;
+}) {
   const repo = useSettingsStore((s) => s.repo);
   const viewMode = useSettingsStore((s) => s.viewMode);
   const inlinePRView = useSettingsStore((s) => s.inlinePRView);
@@ -186,6 +231,9 @@ function AppContent({ onSettings }: { onSettings: () => void }) {
   const activePR = usePRDetailStore((s) => s.activePR);
   const activeIssue = useIssueDetailStore((s) => s.activeIssue);
   const config = useConfigStore((s) => s.config);
+  const issues = useIssueStore((s) => s.issues);
+  const issuesLoading = useIssueStore((s) => s.loading);
+  const fetchIssues = useIssueStore((s) => s.fetchIssues);
 
   const openPRs = useMemo(() => prs.filter((pr) => pr.state === "OPEN"), [prs]);
   const viewPRs = viewMode === "kanban" ? prs : openPRs;
@@ -200,10 +248,17 @@ function AppContent({ onSettings }: { onSettings: () => void }) {
 
   // Lazy-load closed PRs when switching to kanban
   useEffect(() => {
-    if (viewMode === "kanban" && repo) {
+    if (viewMode === "kanban" && repo && kanbanContent === "prs") {
       fetchClosedPRs(repo);
     }
-  }, [viewMode, repo, fetchClosedPRs]);
+  }, [viewMode, repo, kanbanContent, fetchClosedPRs]);
+
+  // Fetch issues when kanban switches to issues mode
+  useEffect(() => {
+    if (viewMode === "kanban" && repo && kanbanContent === "issues") {
+      fetchIssues(repo);
+    }
+  }, [viewMode, repo, kanbanContent, fetchIssues]);
 
   // Load PRs + config when repo changes
   useEffect(() => {
@@ -242,7 +297,12 @@ function AppContent({ onSettings }: { onSettings: () => void }) {
         <EmptyState type="empty" message="No PRs match your filter." />
       )}
 
-      {hasResults && viewMode === "kanban" && <KanbanView prs={filtered} repo={repo} />}
+      {viewMode === "kanban" && kanbanContent === "prs" && hasResults && (
+        <KanbanView prs={filtered} repo={repo} />
+      )}
+      {viewMode === "kanban" && kanbanContent === "issues" && (
+        <IssueKanbanView issues={issues} repo={repo} loading={issuesLoading} />
+      )}
 
       {hasResults && viewMode === "list" && hasGroups && (
         <div className="h-full overflow-y-auto">
@@ -286,6 +346,7 @@ function AppContent({ onSettings }: { onSettings: () => void }) {
 
 export default function App() {
   const [showSettings, setShowSettings] = useState(false);
+  const [kanbanContent, setKanbanContent] = useState<KanbanContent>("prs");
   const inlinePRView = useSettingsStore((s) => s.inlinePRView);
   const activePR = usePRDetailStore((s) => s.activePR);
   const activeIssue = useIssueDetailStore((s) => s.activeIssue);
@@ -294,8 +355,14 @@ export default function App() {
   return (
     <div className="flex flex-col h-screen bg-[var(--color-bg)] text-[var(--color-fg)]">
       <div className="drag-region h-7 shrink-0" />
-      {!isDetailView && <AppHeader showSettings={() => setShowSettings(true)} />}
-      <AppContent onSettings={() => setShowSettings(true)} />
+      {!isDetailView && (
+        <AppHeader
+          showSettings={() => setShowSettings(true)}
+          kanbanContent={kanbanContent}
+          setKanbanContent={setKanbanContent}
+        />
+      )}
+      <AppContent onSettings={() => setShowSettings(true)} kanbanContent={kanbanContent} />
       {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
     </div>
   );

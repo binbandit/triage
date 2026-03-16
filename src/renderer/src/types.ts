@@ -131,12 +131,19 @@ export interface TriageConfig {
 
 export type Theme = "dark" | "light";
 export type ViewMode = "list" | "kanban";
+export type KanbanContent = "prs" | "issues";
 
 export interface Settings {
   repo: string;
   theme: Theme;
   viewMode: ViewMode;
   inlinePRView: boolean;
+}
+
+export interface LocalConfigResult {
+  content: string | null;
+  found: boolean;
+  path: string;
 }
 
 export interface AuthStatus {
@@ -269,6 +276,12 @@ export interface TriageAPI {
   authAccounts: () => Promise<AuthAccount[]>;
   authSwitch: (options: { hostname: string; user: string }) => Promise<ActionResult>;
   authStatus: () => Promise<AuthStatus>;
+
+  // Local config
+  readLocalConfig: () => Promise<LocalConfigResult>;
+  readLocalConfigForRepo: (options: { repo: string }) => Promise<LocalConfigResult>;
+  writeLocalConfig: (options: { content: string }) => Promise<ActionResult & { error?: string }>;
+  openLocalConfigDir: () => Promise<void>;
 
   // Shared
   currentRepo: () => Promise<RepoInfo | null>;

@@ -14,6 +14,14 @@ contextBridge.exposeInMainWorld("api", {
   getCommitFiles: (options: { repo: string; sha: string }) =>
     ipcRenderer.invoke("gh:commit-files", options),
 
+  // Local config
+  readLocalConfig: () => ipcRenderer.invoke("config:read-local"),
+  readLocalConfigForRepo: (options: { repo: string }) =>
+    ipcRenderer.invoke("config:read-local-for-repo", options),
+  writeLocalConfig: (options: { content: string }) =>
+    ipcRenderer.invoke("config:write-local", options),
+  openLocalConfigDir: () => ipcRenderer.invoke("config:open-local-dir"),
+
   // Auth & accounts
   authAccounts: () => ipcRenderer.invoke("gh:auth-accounts"),
   authSwitch: (options: { hostname: string; user: string }) =>

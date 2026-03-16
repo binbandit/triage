@@ -1,11 +1,38 @@
 import { useState, useEffect } from "react";
-import { X, Moon, Sun, Check, Loader2 } from "lucide-react";
+import { X, Moon, Sun, Check, Loader2, FolderOpen } from "lucide-react";
 import { useSettingsStore } from "../stores/settingsStore";
+import { useConfigStore } from "../stores/configStore";
 import { Switch } from "./ui/Switch";
 import type { AuthAccount } from "../types";
 
 interface SettingsPanelProps {
   onClose: () => void;
+}
+
+function ConfigSourceIndicator() {
+  const configSource = useConfigStore((s) => s.configSource);
+  const config = useConfigStore((s) => s.config);
+
+  if (!config) {
+    return <p className="text-[11px] text-[var(--color-fg-dim)]">No config loaded.</p>;
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <span
+        className="size-2 rounded-full shrink-0"
+        style={{
+          backgroundColor: configSource === "local" ? "var(--color-blue)" : "var(--color-green)",
+        }}
+      />
+      <span className="text-[11px] text-[var(--color-fg-secondary)]">
+        {configSource === "local" ? "Local config" : "Repo config"}
+      </span>
+      <span className="text-[10px] text-[var(--color-fg-dim)]">
+        {config.groups.length} group{config.groups.length !== 1 ? "s" : ""}
+      </span>
+    </div>
+  );
 }
 
 export function SettingsPanel({ onClose }: SettingsPanelProps) {
@@ -175,14 +202,36 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
           </div>
         </div>
 
-        {/* Config hint */}
+        {/* Config source */}
         <div className="mt-5 pt-4 border-t border-[var(--color-border)]">
-          <p className="text-[11px] text-[var(--color-fg-dim)] leading-relaxed">
-            PR groups are configured via a{" "}
-            <code className="font-mono text-[var(--color-fg-muted)] bg-[var(--color-bg-overlay)] px-1 py-px rounded">
-              .triage.yml
+          <p className="text-[12px] font-medium text-[var(--color-fg-secondary)] mb-2">
+            Configuration
+          </p>
+          <ConfigSourceIndicator />
+          <div className="flex items-center gap-2 mt-2.5">
+            <button
+              type="button"
+              onClick={() => window.api.openLocalConfigDir()}
+              className="flex items-center gap-1.5 rounded-md border border-[var(--color-border)] px-2.5 py-1.5 text-[11px] font-medium text-[var(--color-fg-muted)] cursor-pointer hover:bg-[var(--color-bg-overlay)] hover:text-[var(--color-fg-secondary)] transition-colors"
+            >
+              <FolderOpen className="size-3" />
+              Open config folder
+            </button>
+          </div>
+          <p className="text-[10px] text-[var(--color-fg-dim)] mt-2 leading-relaxed">
+            Local config at{" "}
+            <code className="font-mono bg-[var(--color-bg-overlay)] px-1 py-px rounded">
+              ~/.config/triage/triage.yaml
             </code>{" "}
-            file in the repository root.
+            overrides repo{" "}
+            <code className="font-mono bg-[var(--color-bg-overlay)] px-1 py-px rounded">
+              .triage.yml
+            </code>
+            . Define per-repo groups using{" "}
+            <code className="font-mono bg-[var(--color-bg-overlay)] px-1 py-px rounded">
+              owner/repo:
+            </code>{" "}
+            keys.
           </p>
         </div>
       </div>

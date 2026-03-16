@@ -1,6 +1,8 @@
 import { app, BrowserWindow, ipcMain, shell } from "electron";
 import { execFile } from "node:child_process";
+import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
+import { homedir } from "node:os";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -164,6 +166,46 @@ ipcMain.handle("gh:fetch-config", async (_event, options: { repo: string; path?:
     return { content: null, found: false };
   }
 });
+
+// ── IPC: Local Config ────────────────────────────────
+
+const LOCAL_CONFIG_DIR = join(homedir(), ".config", "triage");
+const LOCAL_CONFIG_PATH = join(LOCAL_CONFIG_DIR, "triage.yaml");
+
+ipcMain.handle("config:read-local", async () => {
+  try {
+    const content = await readFile(LOCAL_CONFIG_PATH, "utf-8");
+    return { content, found: true, path: LOCAL_CONFIG_PATH };
+  } catch {
+    return { content: null, found: false, path: LOCAL_CONFIG_PATH };
+  }
+});
+
+ipcMain.handle("config:read-local-for-repo", async (_event, options: { repo: string }) => {
+  try {
+    const content = await readFile(LOCAL_CONFIG_PATH, "utf-8");
+    return { content, found: true, path: LOCAL_CONFIG_PATH, repo: options.repo };
+  } catch {
+    return { content: null, found: false, path: LOCAL_CONFIG_PATH, repo: options.repo };
+  }
+});
+
+ipcMain.handle("config:write-local", async (_event, options: { content: string }) => {
+  try {
+    await mkdir(LOCAL_CONFIG_DIR, { recursive: true });
+    await writeFile(LOCAL_CONFIG_PATH, options.content, "utf-8");
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: (err as Error).message };
+  }
+});
+
+ipcMain.handle("config:open-local-dir", async () => {
+  await mkdir(LOCAL_CONFIG_DIR, { recursive: true });
+  shell.openPath(LOCAL_CONFIG_DIR);
+});
+
+// ── IPC: Auth ────────────────────────────────────────
 
 ipcMain.handle("gh:auth-accounts", async () => {
   try {

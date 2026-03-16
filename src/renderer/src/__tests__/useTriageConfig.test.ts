@@ -5,6 +5,7 @@ import { useConfigStore } from "../stores/configStore";
 beforeEach(() => {
   useConfigStore.setState({
     config: null,
+    configSource: null,
     configLoading: false,
     configError: null,
   });
@@ -116,25 +117,16 @@ describe("useConfigStore", () => {
     expect(window.api.fetchConfig).toHaveBeenCalledWith({ repo: "my-org/my-repo" });
   });
 
-  it("sets loading state during fetch", async () => {
-    let resolvePromise: (value: unknown) => void;
-    window.api.fetchConfig = vi.fn(
-      () =>
-        new Promise((resolve) => {
-          resolvePromise = resolve;
-        }),
-    );
+  it("sets loading to true then false during fetch", async () => {
+    window.api.readLocalConfigForRepo = vi.fn().mockResolvedValue({ content: null, found: false });
+    window.api.fetchConfig = vi.fn().mockResolvedValue({ content: null, found: false });
 
-    let fetchPromise: Promise<void>;
-    act(() => {
-      fetchPromise = useConfigStore.getState().fetchConfig("test/repo");
-    });
-
+    // Immediately after calling fetchConfig, loading should be true
+    const promise = useConfigStore.getState().fetchConfig("test/repo");
     expect(useConfigStore.getState().configLoading).toBe(true);
 
     await act(async () => {
-      resolvePromise!({ content: null, found: false });
-      await fetchPromise!;
+      await promise;
     });
 
     expect(useConfigStore.getState().configLoading).toBe(false);
